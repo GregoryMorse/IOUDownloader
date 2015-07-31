@@ -18,9 +18,15 @@
     Structure FileItem
         Public FileURL As String
         Public FileName As String
-        Public TimeModified As String
+        Public TimeCreated As DateTime
+        Public TimeModified As DateTime
+        Public FileSize As Long
+        Public Status As String
+        Public Sub UpdateStatus(Str As String)
+            Status = Str
+        End Sub
         Public Overrides Function ToString() As String
-            Return FileName
+            Return If(Status <> String.Empty, "Status - ", String.Empty) + FileName
         End Function
     End Structure
     Public Sub PopulateCourseList()
@@ -112,7 +118,7 @@
         Dim Stream As New IO.StreamReader(Resp.GetResponseStream())
         Dim Str As String = Stream.ReadToEnd()
         If System.Text.RegularExpressions.Regex.Match(Str, "https:\/\/www\.wiziq\.com\/class\/download.aspx\?.*(?=\"")").Success Then
-            lbFiles.Items.Add(New FileItem With {.FileName = Name.Replace(" ", String.Empty) + ".exe", .FileURL = System.Text.RegularExpressions.Regex.Match(Str, "https:\/\/www\.wiziq\.com\/class\/download.aspx\?.*(?=\"")").Value})
+            'lbFiles.Items.Add(New FileItem With {.FileName = Name.Replace(" ", String.Empty) + If(rbDiploma.Checked, ".zip", ".exe"), .FileURL = System.Text.RegularExpressions.Regex.Match(Str, "https:\/\/www\.wiziq\.com\/class\/download.aspx\?.*(?=\"")").Value})
         ElseIf System.Text.RegularExpressions.Regex.Match(Str, "class=\""next\"" href=\""(.*)\""").Success Then
             CrawlUrl(New Uri(New Uri(Url).GetLeftPart(UriPartial.Path) + "\..\").GetLeftPart(UriPartial.Path) + Net.WebUtility.HtmlDecode(System.Text.RegularExpressions.Regex.Match(Str, "class=\""next\"" href=\""(.*)\""").Groups(1).Value), String.Empty)
         End If
@@ -126,7 +132,7 @@
             AddFileNodes(CourseNodes(Count).SelectNodes("KEY/MULTIPLE/SINGLE"))
             If Not CourseNodes(Count).SelectSingleNode("KEY[@name='type']/VALUE") Is Nothing AndAlso CourseNodes(Count).SelectSingleNode("KEY[@name='type']/VALUE").InnerText = "file" Then
                 If Not CourseNodes(Count).SelectSingleNode("KEY[@name='filename']/VALUE").InnerText.EndsWith(".html") Then
-                    lbFiles.Items.Add(New FileItem With {.FileName = CourseNodes(Count).SelectSingleNode("KEY[@name='filename']/VALUE").InnerText, .FileURL = CourseNodes(Count).SelectSingleNode("KEY[@name='fileurl']/VALUE").InnerText})
+                    lbFiles.Items.Add(New FileItem With {.FileName = CourseNodes(Count).SelectSingleNode("KEY[@name='filename']/VALUE").InnerText, .TimeCreated = New DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc).AddSeconds(CLng(CourseNodes(Count).SelectSingleNode("KEY[@name='timecreated']/VALUE").InnerText)), .TimeModified = New DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc).AddSeconds(CLng(CourseNodes(Count).SelectSingleNode("KEY[@name='timemodified']/VALUE").InnerText)), .FileSize = CourseNodes(Count).SelectSingleNode("KEY[@name='filesize']/VALUE").InnerText, .FileURL = CourseNodes(Count).SelectSingleNode("KEY[@name='fileurl']/VALUE").InnerText + "&token=" + Token})
                 End If
             ElseIf Not CourseNodes(Count).SelectSingleNode("KEY[@name='modname']/VALUE") Is Nothing AndAlso (CourseNodes(Count).SelectSingleNode("KEY[@name='modname']/VALUE").InnerText = "data" Or CourseNodes(Count).SelectSingleNode("KEY[@name='modname']/VALUE").InnerText = "wiziq") Then
                 CrawlUrl(CourseNodes(Count).SelectSingleNode("KEY[@name='url']/VALUE").InnerText, CourseNodes(Count).SelectSingleNode("KEY[@name='name']/VALUE").InnerText)
@@ -134,6 +140,7 @@
         Next
     End Sub
     Private Sub btnDownload_Click(sender As Object, e As EventArgs) Handles btnDownload.Click
+        If lbCourseList.SelectedIndex = -1 Then Return
         GetLoginCookies()
         'how to get a sesskey?
         '"http://www.islamiconlineuniversity.com/opencampus/mod/wiziq/index.php?id=" + CourseID + "&sesskey=" + "&download=xhtml"
@@ -160,19 +167,37 @@
         End If
         For Count As Integer = 0 To lbFiles.Items.Count - 1
             Dim FileReq As Net.HttpWebRequest = Net.WebRequest.Create(lbFiles.Items(Count).FileURL)
+            'FileReq.CookieContainer = New Net.CookieContainer
+            'FileReq.CookieContainer.Add(LoginCookies)
             Dim FileResp As Net.WebResponse = FileReq.GetResponse()
             Dim RespStream As IO.Stream = FileResp.GetResponseStream()
             'check modified/creation date
-            Dim FStream As IO.FileStream = IO.File.OpenWrite(Path + "\" + lbFiles.Items(Count).FileName)
-            Dim Buf(4095) As Byte
-            Dim BytesRead As Integer = RespStream.Read(Buf, 0, 4096)
-            While BytesRead > 0
-                FStream.Write(Buf, 0, BytesRead)
-                BytesRead = RespStream.Read(Buf, 0, 4096)
-            End While
+            Dim Length As Long = 0
+            If IO.File.Exists(Path + "\" + lbFiles.Items(Count).FileName) Then
+                Dim File As IO.FileStream = IO.File.Open(Path + "\" + lbFiles.Items(Count).FileName, IO.FileMode.Open)
+                Length = File.Length
+                File.Close()
+            End If
+            If IO.File.Exists(Path + "\" + lbFiles.Items(Count).FileName) AndAlso Length <> 0 AndAlso (Length = lbFiles.Items(Count).FileSize Or Length = Resp.ContentLength) AndAlso ((Resp.LastModified <> New DateTime(0) And Resp.LastModified.Subtract(Now).TotalSeconds >= 1) AndAlso IO.File.GetLastWriteTime(Path + "\" + lbFiles.Items(Count).FileName) >= Resp.LastModified Or lbFiles.Items(Count).TimeModified <> New DateTime(0) AndAlso IO.File.GetLastWriteTime(Path + "\" + lbFiles.Items(Count).FileName) >= lbFiles.Items(Count).TimeModified) Then
+            Else
+                Dim FStream As IO.FileStream = IO.File.OpenWrite(Path + "\" + lbFiles.Items(Count).FileName)
+                Dim Buf(4095) As Byte
+                Dim BytesRead As Integer = RespStream.Read(Buf, 0, 4096)
+                While BytesRead > 0
+                    FStream.Write(Buf, 0, BytesRead)
+                    BytesRead = RespStream.Read(Buf, 0, 4096)
+                End While
+                FStream.Close()
+                If lbFiles.Items(Count).TimeModified <> New DateTime(0) Then
+                    IO.File.SetLastWriteTime(Path + "\" + lbFiles.Items(Count).FileName, lbFiles.Items(Count).TimeModified)
+                ElseIf Resp.LastModified <> New DateTime(0) And Resp.LastModified.Subtract(Now).TotalSeconds >= 1 Then
+                    IO.File.SetLastWriteTime(Path + "\" + lbFiles.Items(Count).FileName, Resp.LastModified)
+                End If
+            End If
             RespStream.Close()
-            FStream.Close()
             FileResp.Close()
+            lbFiles.Items(Count).UpdateStatus("Complete")
+            lbFiles.Update()
         Next
     End Sub
 
@@ -180,5 +205,21 @@
         If fbdMain.ShowDialog() = Windows.Forms.DialogResult.OK Then
             txtDownloadFolder.Text = fbdMain.SelectedPath
         End If
+    End Sub
+
+    Private Sub rbMainCampus_CheckedChanged(sender As Object, e As EventArgs) Handles rbMainCampus.CheckedChanged
+        lbCourseList.Items.Clear()
+        lbFiles.Items.Clear()
+        UserID = String.Empty
+        Token = String.Empty
+        LoginCookies = Nothing
+    End Sub
+
+    Private Sub rbDiploma_CheckedChanged(sender As Object, e As EventArgs) Handles rbDiploma.CheckedChanged
+        lbCourseList.Items.Clear()
+        lbFiles.Items.Clear()
+        UserID = String.Empty
+        Token = String.Empty
+        LoginCookies = Nothing
     End Sub
 End Class
