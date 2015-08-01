@@ -1,4 +1,4 @@
-﻿Public Class frmIOUDown
+﻿Public Class frmIOUDownload
     'Needs asynchronous coding of downloading portions
     'Needs proper testing and handling for size/date redownloading management code
     'Would be nice to have assignment upload verification and automatic grade checker

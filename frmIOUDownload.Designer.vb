@@ -1,5 +1,5 @@
 ﻿<Global.Microsoft.VisualBasic.CompilerServices.DesignerGenerated()> _
-Partial Class frmIOUDown
+Partial Class frmIOUDownload
     Inherits System.Windows.Forms.Form
 
     'Form overrides dispose to clean up the component list.
@@ -163,7 +163,7 @@ Partial Class frmIOUDown
         Me.btnPrintModuleTests.Text = "Print Module Test Booklet"
         Me.btnPrintModuleTests.UseVisualStyleBackColor = True
         '
-        'frmIOUDown
+        'frmIOUDownload
         '
         Me.AutoScaleDimensions = New System.Drawing.SizeF(6.0!, 13.0!)
         Me.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font
@@ -182,7 +182,7 @@ Partial Class frmIOUDown
         Me.Controls.Add(Me.txtUsername)
         Me.Controls.Add(Me.rbMainCampus)
         Me.Controls.Add(Me.rbDiploma)
-        Me.Name = "frmIOUDown"
+        Me.Name = "frmIOUDownload"
         Me.Text = "IOU Downloader"
         Me.ResumeLayout(False)
         Me.PerformLayout()

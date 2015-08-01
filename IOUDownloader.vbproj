@@ -62,7 +62,7 @@
     <OptionInfer>On</OptionInfer>
   </PropertyGroup>
   <PropertyGroup>
-    <StartupObject>IOUDownloader.frmIOUDown</StartupObject>
+    <StartupObject>IOUDownloader.frmIOUDownload</StartupObject>
   </PropertyGroup>
   <PropertyGroup>
     <SignManifests>true</SignManifests>
@@ -116,11 +116,10 @@
     <Import Include="System.Diagnostics" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="clsIOUDown.vb" />
-    <Compile Include="frmIOUDown.Designer.vb">
-      <DependentUpon>frmIOUDown.vb</DependentUpon>
+    <Compile Include="frmIOUDownload.Designer.vb">
+      <DependentUpon>frmIOUDownload.vb</DependentUpon>
     </Compile>
-    <Compile Include="frmIOUDown.vb">
+    <Compile Include="frmIOUDownload.vb">
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="My Project\AssemblyInfo.vb" />
@@ -140,8 +139,8 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="frmIOUDown.resx">
-      <DependentUpon>frmIOUDown.vb</DependentUpon>
+    <EmbeddedResource Include="frmIOUDownload.resx">
+      <DependentUpon>frmIOUDownload.vb</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="My Project\Resources.resx">
       <Generator>VbMyResourcesResXFileCodeGenerator</Generator>
