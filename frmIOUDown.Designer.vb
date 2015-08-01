@@ -36,6 +36,7 @@ Partial Class frmIOUDown
         Me.fbdMain = New System.Windows.Forms.FolderBrowserDialog()
         Me.btnSetDownloadFolder = New System.Windows.Forms.Button()
         Me.txtDownloadFolder = New System.Windows.Forms.TextBox()
+        Me.btnPrintModuleTests = New System.Windows.Forms.Button()
         Me.SuspendLayout()
         '
         'rbDiploma
@@ -122,9 +123,9 @@ Partial Class frmIOUDown
         '
         'btnDownload
         '
-        Me.btnDownload.Location = New System.Drawing.Point(424, 95)
+        Me.btnDownload.Location = New System.Drawing.Point(424, 84)
         Me.btnDownload.Name = "btnDownload"
-        Me.btnDownload.Size = New System.Drawing.Size(90, 43)
+        Me.btnDownload.Size = New System.Drawing.Size(90, 21)
         Me.btnDownload.TabIndex = 9
         Me.btnDownload.Text = "Download"
         Me.btnDownload.UseVisualStyleBackColor = True
@@ -153,11 +154,21 @@ Partial Class frmIOUDown
         Me.txtDownloadFolder.Size = New System.Drawing.Size(406, 20)
         Me.txtDownloadFolder.TabIndex = 12
         '
+        'btnPrintModuleTests
+        '
+        Me.btnPrintModuleTests.Location = New System.Drawing.Point(424, 103)
+        Me.btnPrintModuleTests.Name = "btnPrintModuleTests"
+        Me.btnPrintModuleTests.Size = New System.Drawing.Size(90, 39)
+        Me.btnPrintModuleTests.TabIndex = 13
+        Me.btnPrintModuleTests.Text = "Print Module Test Booklet"
+        Me.btnPrintModuleTests.UseVisualStyleBackColor = True
+        '
         'frmIOUDown
         '
         Me.AutoScaleDimensions = New System.Drawing.SizeF(6.0!, 13.0!)
         Me.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font
         Me.ClientSize = New System.Drawing.Size(526, 323)
+        Me.Controls.Add(Me.btnPrintModuleTests)
         Me.Controls.Add(Me.txtDownloadFolder)
         Me.Controls.Add(Me.btnSetDownloadFolder)
         Me.Controls.Add(Me.lbFiles)
@@ -191,4 +202,5 @@ Partial Class frmIOUDown
     Friend WithEvents fbdMain As System.Windows.Forms.FolderBrowserDialog
     Friend WithEvents btnSetDownloadFolder As System.Windows.Forms.Button
     Friend WithEvents txtDownloadFolder As System.Windows.Forms.TextBox
+    Friend WithEvents btnPrintModuleTests As System.Windows.Forms.Button
 End Class

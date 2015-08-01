@@ -118,8 +118,11 @@
         Dim Stream As New IO.StreamReader(Resp.GetResponseStream())
         Dim Str As String = Stream.ReadToEnd()
         If System.Text.RegularExpressions.Regex.Match(Str, "https:\/\/www\.wiziq\.com\/class\/download.aspx\?.*(?=\"")").Success Then
-            'lbFiles.Items.Add(New FileItem With {.FileName = Name.Replace(" ", String.Empty) + If(rbDiploma.Checked, ".zip", ".exe"), .FileURL = System.Text.RegularExpressions.Regex.Match(Str, "https:\/\/www\.wiziq\.com\/class\/download.aspx\?.*(?=\"")").Value})
+            lbFiles.Items.Add(New FileItem With {.FileName = Name.Replace(" ", String.Empty) + If(rbDiploma.Checked, ".zip", ".exe"), .FileURL = System.Text.RegularExpressions.Regex.Match(Str, "https:\/\/www\.wiziq\.com\/class\/download.aspx\?.*(?=\"")").Value})
+        ElseIf System.Text.RegularExpressions.Regex.Match(Str, "http:\/\/www\.islamiconlineuniversity\.com\/campus\/mod\/quiz\/review.php\?attempt=.*?(?=\"")").Success Then
+            lbFiles.Items.Add(New FileItem With {.FileName = Name.Replace(" ", String.Empty) + ".html", .FileURL = System.Text.RegularExpressions.Regex.Match(Str, "http:\/\/www\.islamiconlineuniversity\.com\/campus\/mod\/quiz\/review.php\?attempt=.*?(?=\"")").Value})
         ElseIf System.Text.RegularExpressions.Regex.Match(Str, "class=\""next\"" href=\""(.*)\""").Success Then
+            'must page through each page through next links until exhausted recursively to get all notes
             CrawlUrl(New Uri(New Uri(Url).GetLeftPart(UriPartial.Path) + "\..\").GetLeftPart(UriPartial.Path) + Net.WebUtility.HtmlDecode(System.Text.RegularExpressions.Regex.Match(Str, "class=\""next\"" href=\""(.*)\""").Groups(1).Value), String.Empty)
         End If
         Dim Matches As System.Text.RegularExpressions.MatchCollection = System.Text.RegularExpressions.Regex.Matches(Str, "http:\/\/www.islamiconlineuniversity.com\/(?:open)?campus/pluginfile\.php.*(?=\"".*\>(.*)\<\/a\>)")
@@ -127,10 +130,14 @@
             lbFiles.Items.Add(New FileItem With {.FileName = Matches(MatchCount).Groups(1).Value, .FileURL = Matches(MatchCount).Value})
         Next
     End Sub
-    Public Sub AddFileNodes(CourseNodes As Xml.XmlNodeList)
+    Public Sub AddFileNodes(CourseNodes As Xml.XmlNodeList, bQuizOnly As Boolean)
         For Count = 0 To CourseNodes.Count - 1
-            AddFileNodes(CourseNodes(Count).SelectNodes("KEY/MULTIPLE/SINGLE"))
-            If Not CourseNodes(Count).SelectSingleNode("KEY[@name='type']/VALUE") Is Nothing AndAlso CourseNodes(Count).SelectSingleNode("KEY[@name='type']/VALUE").InnerText = "file" Then
+            AddFileNodes(CourseNodes(Count).SelectNodes("KEY/MULTIPLE/SINGLE"), bQuizOnly)
+            If bQuizOnly Then
+                If Not CourseNodes(Count).SelectSingleNode("KEY[@name='modname']/VALUE") Is Nothing AndAlso CourseNodes(Count).SelectSingleNode("KEY[@name='modname']/VALUE").InnerText = "quiz" Then
+                    CrawlUrl(CourseNodes(Count).SelectSingleNode("KEY[@name='url']/VALUE").InnerText, CourseNodes(Count).SelectSingleNode("KEY[@name='name']/VALUE").InnerText)
+                End If
+            ElseIf Not CourseNodes(Count).SelectSingleNode("KEY[@name='type']/VALUE") Is Nothing AndAlso CourseNodes(Count).SelectSingleNode("KEY[@name='type']/VALUE").InnerText = "file" Then
                 If Not CourseNodes(Count).SelectSingleNode("KEY[@name='filename']/VALUE").InnerText.EndsWith(".html") Then
                     lbFiles.Items.Add(New FileItem With {.FileName = CourseNodes(Count).SelectSingleNode("KEY[@name='filename']/VALUE").InnerText, .TimeCreated = New DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc).AddSeconds(CLng(CourseNodes(Count).SelectSingleNode("KEY[@name='timecreated']/VALUE").InnerText)), .TimeModified = New DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc).AddSeconds(CLng(CourseNodes(Count).SelectSingleNode("KEY[@name='timemodified']/VALUE").InnerText)), .FileSize = CourseNodes(Count).SelectSingleNode("KEY[@name='filesize']/VALUE").InnerText, .FileURL = CourseNodes(Count).SelectSingleNode("KEY[@name='fileurl']/VALUE").InnerText + "&token=" + Token})
                 End If
@@ -139,7 +146,7 @@
             End If
         Next
     End Sub
-    Private Sub btnDownload_Click(sender As Object, e As EventArgs) Handles btnDownload.Click
+    Sub DoDownload(bQuizOnly As Boolean)
         If lbCourseList.SelectedIndex = -1 Then Return
         GetLoginCookies()
         'how to get a sesskey?
@@ -158,40 +165,57 @@
         End If
         Dim XmlDoc As New Xml.XmlDocument
         XmlDoc.Load(Reader)
-        AddFileNodes(XmlDoc.SelectNodes("/RESPONSE/MULTIPLE/SINGLE"))
+        AddFileNodes(XmlDoc.SelectNodes("/RESPONSE/MULTIPLE/SINGLE"), bQuizOnly)
         Reader.Close()
         Resp.Close()
         Dim Path As String = If(txtDownloadFolder.Text = String.Empty, String.Empty, txtDownloadFolder.Text + "\") + CStr(lbCourseList.SelectedItem.ShortName).Replace(" ", String.Empty)
         If Not IO.Directory.Exists(Path) Then
             IO.Directory.CreateDirectory(Path)
         End If
+        Dim msOutput As New IO.MemoryStream()
+        Dim Doc As New iTextSharp.text.Document(iTextSharp.text.PageSize.A4, 30, 30, 30, 30)
+        Dim Writer As iTextSharp.text.pdf.PdfWriter = iTextSharp.text.pdf.PdfWriter.GetInstance(Doc, msOutput)
+        Writer.CloseStream = False
+        Doc.Open()
         For Count As Integer = 0 To lbFiles.Items.Count - 1
             Dim FileReq As Net.HttpWebRequest = Net.WebRequest.Create(lbFiles.Items(Count).FileURL)
-            'FileReq.CookieContainer = New Net.CookieContainer
-            'FileReq.CookieContainer.Add(LoginCookies)
-            Dim FileResp As Net.WebResponse = FileReq.GetResponse()
+            FileReq.CookieContainer = New Net.CookieContainer
+            FileReq.CookieContainer.Add(LoginCookies)
+            Dim FileResp As Net.HttpWebResponse = FileReq.GetResponse()
             Dim RespStream As IO.Stream = FileResp.GetResponseStream()
-            'check modified/creation date
-            Dim Length As Long = 0
-            If IO.File.Exists(Path + "\" + lbFiles.Items(Count).FileName) Then
-                Dim File As IO.FileStream = IO.File.Open(Path + "\" + lbFiles.Items(Count).FileName, IO.FileMode.Open)
-                Length = File.Length
-                File.Close()
-            End If
-            If IO.File.Exists(Path + "\" + lbFiles.Items(Count).FileName) AndAlso Length <> 0 AndAlso (Length = lbFiles.Items(Count).FileSize Or Length = Resp.ContentLength) AndAlso ((Resp.LastModified <> New DateTime(0) And Resp.LastModified.Subtract(Now).TotalSeconds >= 1) AndAlso IO.File.GetLastWriteTime(Path + "\" + lbFiles.Items(Count).FileName) >= Resp.LastModified Or lbFiles.Items(Count).TimeModified <> New DateTime(0) AndAlso IO.File.GetLastWriteTime(Path + "\" + lbFiles.Items(Count).FileName) >= lbFiles.Items(Count).TimeModified) Then
+            If bQuizOnly Then
+                Dim XHtmlFix As String = NSoup.Parse.Parser.HtmlParser.ParseInput(New IO.StreamReader(RespStream).ReadToEnd(), FileResp.ResponseUri.AbsoluteUri).Html()
+                'remove problematic style sheet that causes iTextSharp to crash
+                XHtmlFix = System.Text.RegularExpressions.Regex.Replace(XHtmlFix, "\<link rel=\""stylesheet\"" type=\""text\/css\"" href=\""http:\/\/www\.islamiconlineuniversity\.com\/campus\/theme\/styles\.php\/_s\/elegance\/\d*\/all\"" \/\>", String.Empty)
+                'Dim XHtmlStream As New IO.MemoryStream(System.Text.Encoding.GetEncoding(FileResp.CharacterSet).GetBytes(XHtmlFix))
+                'XHtmlStream.Seek(0, IO.SeekOrigin.Begin)
+                'iTextSharp.tool.xml.XMLWorkerHelper.GetInstance().ParseXHtml(Writer, Doc, XHtmlStream, System.Text.Encoding.GetEncoding(FileResp.CharacterSet))
+                'XHtmlStream.Close()
+                Dim ElementList As iTextSharp.tool.xml.ElementList = iTextSharp.tool.xml.XMLWorkerHelper.ParseToElementList(XHtmlFix, String.Empty)
+                Doc.Add(ElementList(5)) '5th element has the relevant content to eliminate headers and footers
             Else
-                Dim FStream As IO.FileStream = IO.File.OpenWrite(Path + "\" + lbFiles.Items(Count).FileName)
-                Dim Buf(4095) As Byte
-                Dim BytesRead As Integer = RespStream.Read(Buf, 0, 4096)
-                While BytesRead > 0
-                    FStream.Write(Buf, 0, BytesRead)
-                    BytesRead = RespStream.Read(Buf, 0, 4096)
-                End While
-                FStream.Close()
-                If lbFiles.Items(Count).TimeModified <> New DateTime(0) Then
-                    IO.File.SetLastWriteTime(Path + "\" + lbFiles.Items(Count).FileName, lbFiles.Items(Count).TimeModified)
-                ElseIf Resp.LastModified <> New DateTime(0) And Resp.LastModified.Subtract(Now).TotalSeconds >= 1 Then
-                    IO.File.SetLastWriteTime(Path + "\" + lbFiles.Items(Count).FileName, Resp.LastModified)
+                'check modified/creation date
+                Dim Length As Long = 0
+                If IO.File.Exists(Path + "\" + lbFiles.Items(Count).FileName) Then
+                    Dim File As IO.FileStream = IO.File.Open(Path + "\" + lbFiles.Items(Count).FileName, IO.FileMode.Open)
+                    Length = File.Length
+                    File.Close()
+                End If
+                If IO.File.Exists(Path + "\" + lbFiles.Items(Count).FileName) AndAlso Length <> 0 AndAlso (Length = lbFiles.Items(Count).FileSize Or Length = Resp.ContentLength) AndAlso ((Resp.LastModified <> New DateTime(0) And Resp.LastModified.Subtract(Now).TotalSeconds >= 1) AndAlso IO.File.GetLastWriteTime(Path + "\" + lbFiles.Items(Count).FileName) >= Resp.LastModified Or lbFiles.Items(Count).TimeModified <> New DateTime(0) AndAlso IO.File.GetLastWriteTime(Path + "\" + lbFiles.Items(Count).FileName) >= lbFiles.Items(Count).TimeModified) Then
+                Else
+                    Dim FStream As IO.FileStream = IO.File.OpenWrite(Path + "\" + lbFiles.Items(Count).FileName)
+                    Dim Buf(4095) As Byte
+                    Dim BytesRead As Integer = RespStream.Read(Buf, 0, 4096)
+                    While BytesRead > 0
+                        FStream.Write(Buf, 0, BytesRead)
+                        BytesRead = RespStream.Read(Buf, 0, 4096)
+                    End While
+                    FStream.Close()
+                    If lbFiles.Items(Count).TimeModified <> New DateTime(0) Then
+                        IO.File.SetLastWriteTime(Path + "\" + lbFiles.Items(Count).FileName, lbFiles.Items(Count).TimeModified)
+                    ElseIf Resp.LastModified <> New DateTime(0) And Resp.LastModified.Subtract(Now).TotalSeconds >= 1 Then
+                        IO.File.SetLastWriteTime(Path + "\" + lbFiles.Items(Count).FileName, Resp.LastModified)
+                    End If
                 End If
             End If
             RespStream.Close()
@@ -199,8 +223,20 @@
             lbFiles.Items(Count).UpdateStatus("Complete")
             lbFiles.Update()
         Next
+        Doc.Close()
+        If bQuizOnly Then
+            Dim OutFile As IO.FileStream = IO.File.Create(Path + "\ModuleQuizBooklet.pdf")
+            msOutput.Seek(0, IO.SeekOrigin.Begin)
+            OutFile.Write(msOutput.ToArray(), 0, msOutput.Length)
+            OutFile.Close()
+        End If
+        Writer.CloseStream = False
+        Writer.Close()
+        msOutput.Close()
     End Sub
-
+    Private Sub btnDownload_Click(sender As Object, e As EventArgs) Handles btnDownload.Click
+        DoDownload(False)
+    End Sub
     Private Sub btnSetDownloadFolder_Click(sender As Object, e As EventArgs) Handles btnSetDownloadFolder.Click
         If fbdMain.ShowDialog() = Windows.Forms.DialogResult.OK Then
             txtDownloadFolder.Text = fbdMain.SelectedPath
@@ -221,5 +257,9 @@
         UserID = String.Empty
         Token = String.Empty
         LoginCookies = Nothing
+    End Sub
+
+    Private Sub btnPrintModuleTests_Click(sender As Object, e As EventArgs) Handles btnPrintModuleTests.Click
+        DoDownload(True)
     End Sub
 End Class
