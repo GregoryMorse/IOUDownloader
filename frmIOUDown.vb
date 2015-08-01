@@ -1,5 +1,7 @@
 ﻿Public Class frmIOUDown
-
+    'Needs asynchronous coding of downloading portions
+    'Needs proper testing and handling for size/date redownloading management code
+    'Would be nice to have assignment upload verification and automatic grade checker
     Public IOUCampus As String = "http://www.islamiconlineuniversity.com/campus"
     Public IOUOpenCampus As String = "http://www.islamiconlineuniversity.com/opencampus"
     Public Extensions As String = "*.pdf,*.pptx,*.ppt,*.docx,*.doc,*.rtf,*.xlsx,*.xls,*.mp3,*.mp4,*.flv"
@@ -117,6 +119,7 @@
         Dim Resp As Net.HttpWebResponse = Req.GetResponse()
         Dim Stream As New IO.StreamReader(Resp.GetResponseStream())
         Dim Str As String = Stream.ReadToEnd()
+        'No file size and modified date information so this can only be verified with HTTP headers which are usually not set
         If System.Text.RegularExpressions.Regex.Match(Str, "https:\/\/www\.wiziq\.com\/class\/download.aspx\?.*(?=\"")").Success Then
             lbFiles.Items.Add(New FileItem With {.FileName = Name.Replace(" ", String.Empty) + If(rbDiploma.Checked, ".zip", ".exe"), .FileURL = System.Text.RegularExpressions.Regex.Match(Str, "https:\/\/www\.wiziq\.com\/class\/download.aspx\?.*(?=\"")").Value})
         ElseIf System.Text.RegularExpressions.Regex.Match(Str, "http:\/\/www\.islamiconlineuniversity\.com\/campus\/mod\/quiz\/review.php\?attempt=.*?(?=\"")").Success Then
@@ -149,7 +152,8 @@
     Sub DoDownload(bQuizOnly As Boolean)
         If lbCourseList.SelectedIndex = -1 Then Return
         GetLoginCookies()
-        'how to get a sesskey?
+        'how to get a sesskey without crawling page that has the download link anyway?
+        'perhaps with sesskey, it is possible to get mp4 or other video format?
         '"http://www.islamiconlineuniversity.com/opencampus/mod/wiziq/index.php?id=" + CourseID + "&sesskey=" + "&download=xhtml"
         Dim Req As Net.HttpWebRequest = Net.WebRequest.Create(If(rbDiploma.Checked, IOUOpenCampus, IOUCampus) + "/webservice/rest/server.php?wstoken=" + Token + "&wsfunction=core_course_get_contents&courseid=" + lbCourseList.SelectedItem.ID())
         lbFiles.Items.Clear()
