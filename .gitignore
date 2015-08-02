@@ -14,3 +14,5 @@
 /bin/Release/IOUDownloader.xml
 /bin/Release/itextsharp.xml
 /bin/Release/IOUDownloader.vshost.exe.manifest
+/IOUDownloader_TemporaryKey.pfx
+/Temporary.snk
