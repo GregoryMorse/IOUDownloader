@@ -1,0 +1,10 @@
+﻿################################################################################
+# This .gitignore file was automatically created by Microsoft(R) Visual Studio.
+################################################################################
+
+/obj
+/IOUDownloader.v12.suo
+/IOUDownloader.vbproj.user
+/publish
+/bin/Debug
+/bin/Release
