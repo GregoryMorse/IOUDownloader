@@ -7,4 +7,10 @@
 /IOUDownloader.vbproj.user
 /publish
 /bin/Debug
-/bin/Release
+/bin/Release/IOUDownloader.application
+/bin/Release/IOUDownloader.exe.manifest
+/bin/Release/IOUDownloader.vshost.application
+/bin/Release/IOUDownloader.vshost.exe
+/bin/Release/IOUDownloader.xml
+/bin/Release/itextsharp.xml
+/bin/Release/IOUDownloader.vshost.exe.manifest
