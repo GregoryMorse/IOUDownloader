@@ -22,6 +22,7 @@ Partial Class frmIOUDownload
     'Do not modify it using the code editor.
     <System.Diagnostics.DebuggerStepThrough()> _
     Private Sub InitializeComponent()
+        Dim resources As System.ComponentModel.ComponentResourceManager = New System.ComponentModel.ComponentResourceManager(GetType(frmIOUDownload))
         Me.rbDiploma = New System.Windows.Forms.RadioButton()
         Me.rbMainCampus = New System.Windows.Forms.RadioButton()
         Me.txtUsername = New System.Windows.Forms.TextBox()
@@ -32,11 +33,14 @@ Partial Class frmIOUDownload
         Me.Label2 = New System.Windows.Forms.Label()
         Me.lblError = New System.Windows.Forms.Label()
         Me.btnDownload = New System.Windows.Forms.Button()
-        Me.lbFiles = New System.Windows.Forms.ListBox()
         Me.fbdMain = New System.Windows.Forms.FolderBrowserDialog()
         Me.btnSetDownloadFolder = New System.Windows.Forms.Button()
         Me.txtDownloadFolder = New System.Windows.Forms.TextBox()
-        Me.btnPrintModuleTests = New System.Windows.Forms.Button()
+        Me.lvFiles = New System.Windows.Forms.ListView()
+        Me.cbLiveSessions = New System.Windows.Forms.CheckBox()
+        Me.cbCourseNotes = New System.Windows.Forms.CheckBox()
+        Me.cbModuleFiles = New System.Windows.Forms.CheckBox()
+        Me.cbPrintModuleTestBooklet = New System.Windows.Forms.CheckBox()
         Me.SuspendLayout()
         '
         'rbDiploma
@@ -123,20 +127,12 @@ Partial Class frmIOUDownload
         '
         'btnDownload
         '
-        Me.btnDownload.Location = New System.Drawing.Point(424, 84)
+        Me.btnDownload.Location = New System.Drawing.Point(424, 99)
         Me.btnDownload.Name = "btnDownload"
-        Me.btnDownload.Size = New System.Drawing.Size(90, 21)
+        Me.btnDownload.Size = New System.Drawing.Size(90, 32)
         Me.btnDownload.TabIndex = 9
         Me.btnDownload.Text = "Download"
         Me.btnDownload.UseVisualStyleBackColor = True
-        '
-        'lbFiles
-        '
-        Me.lbFiles.FormattingEnabled = True
-        Me.lbFiles.Location = New System.Drawing.Point(12, 184)
-        Me.lbFiles.Name = "lbFiles"
-        Me.lbFiles.Size = New System.Drawing.Size(502, 69)
-        Me.lbFiles.TabIndex = 10
         '
         'btnSetDownloadFolder
         '
@@ -154,24 +150,76 @@ Partial Class frmIOUDownload
         Me.txtDownloadFolder.Size = New System.Drawing.Size(406, 20)
         Me.txtDownloadFolder.TabIndex = 12
         '
-        'btnPrintModuleTests
+        'lvFiles
         '
-        Me.btnPrintModuleTests.Location = New System.Drawing.Point(424, 103)
-        Me.btnPrintModuleTests.Name = "btnPrintModuleTests"
-        Me.btnPrintModuleTests.Size = New System.Drawing.Size(90, 39)
-        Me.btnPrintModuleTests.TabIndex = 13
-        Me.btnPrintModuleTests.Text = "Print Module Test Booklet"
-        Me.btnPrintModuleTests.UseVisualStyleBackColor = True
+        Me.lvFiles.FullRowSelect = True
+        Me.lvFiles.Location = New System.Drawing.Point(12, 209)
+        Me.lvFiles.Name = "lvFiles"
+        Me.lvFiles.Size = New System.Drawing.Size(502, 102)
+        Me.lvFiles.TabIndex = 14
+        Me.lvFiles.UseCompatibleStateImageBehavior = False
+        Me.lvFiles.View = System.Windows.Forms.View.Details
+        '
+        'cbLiveSessions
+        '
+        Me.cbLiveSessions.AutoSize = True
+        Me.cbLiveSessions.Checked = True
+        Me.cbLiveSessions.CheckState = System.Windows.Forms.CheckState.Checked
+        Me.cbLiveSessions.Location = New System.Drawing.Point(423, 186)
+        Me.cbLiveSessions.Name = "cbLiveSessions"
+        Me.cbLiveSessions.Size = New System.Drawing.Size(91, 17)
+        Me.cbLiveSessions.TabIndex = 15
+        Me.cbLiveSessions.Text = "Live Sessions"
+        Me.cbLiveSessions.UseVisualStyleBackColor = True
+        '
+        'cbCourseNotes
+        '
+        Me.cbCourseNotes.AutoSize = True
+        Me.cbCourseNotes.Checked = True
+        Me.cbCourseNotes.CheckState = System.Windows.Forms.CheckState.Checked
+        Me.cbCourseNotes.Location = New System.Drawing.Point(326, 186)
+        Me.cbCourseNotes.Name = "cbCourseNotes"
+        Me.cbCourseNotes.Size = New System.Drawing.Size(90, 17)
+        Me.cbCourseNotes.TabIndex = 16
+        Me.cbCourseNotes.Text = "Course Notes"
+        Me.cbCourseNotes.UseVisualStyleBackColor = True
+        '
+        'cbModuleFiles
+        '
+        Me.cbModuleFiles.AutoSize = True
+        Me.cbModuleFiles.Checked = True
+        Me.cbModuleFiles.CheckState = System.Windows.Forms.CheckState.Checked
+        Me.cbModuleFiles.Location = New System.Drawing.Point(220, 186)
+        Me.cbModuleFiles.Name = "cbModuleFiles"
+        Me.cbModuleFiles.Size = New System.Drawing.Size(85, 17)
+        Me.cbModuleFiles.TabIndex = 17
+        Me.cbModuleFiles.Text = "Module Files"
+        Me.cbModuleFiles.UseVisualStyleBackColor = True
+        '
+        'cbPrintModuleTestBooklet
+        '
+        Me.cbPrintModuleTestBooklet.AutoSize = True
+        Me.cbPrintModuleTestBooklet.Checked = True
+        Me.cbPrintModuleTestBooklet.CheckState = System.Windows.Forms.CheckState.Checked
+        Me.cbPrintModuleTestBooklet.Location = New System.Drawing.Point(24, 186)
+        Me.cbPrintModuleTestBooklet.Name = "cbPrintModuleTestBooklet"
+        Me.cbPrintModuleTestBooklet.Size = New System.Drawing.Size(148, 17)
+        Me.cbPrintModuleTestBooklet.TabIndex = 18
+        Me.cbPrintModuleTestBooklet.Text = "Print Module Test Booklet"
+        Me.cbPrintModuleTestBooklet.UseVisualStyleBackColor = True
         '
         'frmIOUDownload
         '
         Me.AutoScaleDimensions = New System.Drawing.SizeF(6.0!, 13.0!)
         Me.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font
         Me.ClientSize = New System.Drawing.Size(526, 323)
-        Me.Controls.Add(Me.btnPrintModuleTests)
+        Me.Controls.Add(Me.cbPrintModuleTestBooklet)
+        Me.Controls.Add(Me.cbModuleFiles)
+        Me.Controls.Add(Me.cbCourseNotes)
+        Me.Controls.Add(Me.cbLiveSessions)
+        Me.Controls.Add(Me.lvFiles)
         Me.Controls.Add(Me.txtDownloadFolder)
         Me.Controls.Add(Me.btnSetDownloadFolder)
-        Me.Controls.Add(Me.lbFiles)
         Me.Controls.Add(Me.btnDownload)
         Me.Controls.Add(Me.lblError)
         Me.Controls.Add(Me.Label2)
@@ -182,12 +230,13 @@ Partial Class frmIOUDownload
         Me.Controls.Add(Me.txtUsername)
         Me.Controls.Add(Me.rbMainCampus)
         Me.Controls.Add(Me.rbDiploma)
+        Me.Icon = CType(resources.GetObject("$this.Icon"), System.Drawing.Icon)
         Me.Name = "frmIOUDownload"
         Me.Text = "IOU Downloader"
-        Me.ResumeLayout(False)
-        Me.PerformLayout()
+        Me.ResumeLayout(false)
+        Me.PerformLayout
 
-    End Sub
+End Sub
     Friend WithEvents rbDiploma As System.Windows.Forms.RadioButton
     Friend WithEvents rbMainCampus As System.Windows.Forms.RadioButton
     Friend WithEvents txtUsername As System.Windows.Forms.TextBox
@@ -198,9 +247,12 @@ Partial Class frmIOUDownload
     Friend WithEvents Label2 As System.Windows.Forms.Label
     Friend WithEvents lblError As System.Windows.Forms.Label
     Friend WithEvents btnDownload As System.Windows.Forms.Button
-    Friend WithEvents lbFiles As System.Windows.Forms.ListBox
     Friend WithEvents fbdMain As System.Windows.Forms.FolderBrowserDialog
     Friend WithEvents btnSetDownloadFolder As System.Windows.Forms.Button
     Friend WithEvents txtDownloadFolder As System.Windows.Forms.TextBox
-    Friend WithEvents btnPrintModuleTests As System.Windows.Forms.Button
+    Friend WithEvents lvFiles As System.Windows.Forms.ListView
+    Friend WithEvents cbLiveSessions As System.Windows.Forms.CheckBox
+    Friend WithEvents cbCourseNotes As System.Windows.Forms.CheckBox
+    Friend WithEvents cbModuleFiles As System.Windows.Forms.CheckBox
+    Friend WithEvents cbPrintModuleTestBooklet As System.Windows.Forms.CheckBox
 End Class

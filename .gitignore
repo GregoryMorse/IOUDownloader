@@ -16,3 +16,11 @@
 /bin/Release/IOUDownloader.vshost.exe.manifest
 /IOUDownloader_TemporaryKey.pfx
 /Temporary.snk
+/bin/Release/IOUDownloader.exe.config
+/bin/Release/IOUDownloader.vshost.exe.config
+/bin/Release/Microsoft.Threading.Tasks.xml
+/bin/Release/System.IO.xml
+/bin/Release/Microsoft.Threading.Tasks.Extensions.Desktop.xml
+/bin/Release/Microsoft.Threading.Tasks.Extensions.xml
+/bin/Release/System.Runtime.xml
+/bin/Release/System.Threading.Tasks.xml
