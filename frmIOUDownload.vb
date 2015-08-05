@@ -81,9 +81,22 @@
         'moodle_mobile_app does not have REST access only XML RPC
         'local_mobile service - additional features not tested yet
         Dim Req As Net.HttpWebRequest = Net.WebRequest.Create(If(rbDiploma.Checked, IOUOpenCampus, IOUCampus) + "/login/token.php?username=" + Net.WebUtility.HtmlEncode(txtUsername.Text) + "&password=" + Net.WebUtility.HtmlEncode(txtPassword.Text) + "&service=android")
-        Dim Resp As Net.HttpWebResponse = Req.GetResponse()
+        Dim Resp As Net.HttpWebResponse
+        Try
+            Resp = Req.GetResponse()
+        Catch ex As Net.WebException
+            lblError.Text = ex.Message
+            Return
+        End Try
         Dim MemStream As New IO.MemoryStream
-        Resp.GetResponseStream().CopyTo(MemStream)
+        Try
+            Resp.GetResponseStream().CopyTo(MemStream)
+        Catch ex As IO.IOException
+            lblError.Text = ex.Message
+            MemStream.Close()
+            Resp.Close()
+            Return
+        End Try
         MemStream.Seek(0, IO.SeekOrigin.Begin)
         Dim Reader As System.Xml.XmlReader
         If Resp.ContentType = "application/xml; charset=utf-8" Then
@@ -102,6 +115,7 @@
             PopulateCourseList()
         End If
         Reader.Close()
+        MemStream.Close()
         Resp.Close()
     End Sub
     Public Sub GetLoginCookies()
@@ -115,9 +129,23 @@
         Dim ReqStream As IO.Stream = Req.GetRequestStream()
         ReqStream.Write(Buf, 0, Buf.Length)
         ReqStream.Close()
-        Dim Resp As Net.HttpWebResponse = Req.GetResponse()
+        Dim Resp As Net.HttpWebResponse
+        Try
+            Resp = Req.GetResponse()
+        Catch ex As IO.IOException
+            lblError.Text = ex.Message
+            Return
+        End Try
         Dim Stream As New IO.StreamReader(Resp.GetResponseStream())
-        Dim Str As String = Stream.ReadToEnd()
+        Dim Str As String
+        Try
+            Str = Stream.ReadToEnd()
+        Catch ex As IO.IOException
+            lblError.Text = ex.Message
+            Stream.Close()
+            Resp.Close()
+            Return
+        End Try
         If Resp.Cookies.Count = 0 Then
             LoginCookies = New Net.CookieCollection
             For Count As Integer = 0 To Resp.Headers.Count - 1
@@ -134,15 +162,28 @@
         Stream.Close()
         Resp.Close()
     End Sub
-
     Public Async Function CrawlUrl(Url As String, UrlName As String) As Threading.Tasks.Task
         Dim Req As Net.HttpWebRequest = Net.WebRequest.Create(Url)
         Req.CookieContainer = New Net.CookieContainer
         Req.CookieContainer.Add(LoginCookies)
-        Dim Resp As Net.HttpWebResponse = Await Threading.Tasks.Task.Factory.FromAsync(Req.BeginGetResponse(Sub()
-                                                                                                            End Sub, Req), AddressOf Req.EndGetResponse)
+        Dim Resp As Net.HttpWebResponse
+        Try
+            Resp = Await Threading.Tasks.Task.Factory.FromAsync(Req.BeginGetResponse(Sub()
+                                                                                     End Sub, Req), AddressOf Req.EndGetResponse)
+        Catch ex As Net.WebException
+            lblError.Text = ex.Message
+            Return
+        End Try
         Dim Stream As New IO.StreamReader(Resp.GetResponseStream())
-        Dim Str As String = Stream.ReadToEnd()
+        Dim Str As String
+        Try
+            Str = Stream.ReadToEnd()
+        Catch ex As IO.IOException
+            lblError.Text = ex.Message
+            Stream.Close()
+            Resp.Close()
+            Return
+        End Try
         'No file size and modified date information so this can only be verified with HTTP headers which are usually not set
         If System.Text.RegularExpressions.Regex.Match(Str, "https:\/\/www\.wiziq\.com\/class\/download.aspx\?.*(?=\"")").Success Then
             lvFiles.Items.Add(New FileItem With {.FileName = UrlName.Replace(" ", String.Empty) + ".zip", .FileURL = System.Text.RegularExpressions.Regex.Match(Str, "https:\/\/www\.wiziq\.com\/class\/download.aspx\?.*(?=\"")").Value})
@@ -158,6 +199,8 @@
         For MatchCount = 0 To Matches.Count - 1
             lvFiles.Items.Add(New FileItem With {.FileName = UrlName.Replace(" ", String.Empty) + CStr(MatchCount) + ".html", .FileURL = Matches(MatchCount).Value, .IsQuiz = True})
         Next
+        Stream.Close()
+        Resp.Close()
     End Function
     Public Async Function AddFileNodes(CourseNodes As Xml.XmlNodeList) As Threading.Tasks.Task
         For Count = 0 To CourseNodes.Count - 1
@@ -195,10 +238,23 @@
         '"http://www.islamiconlineuniversity.com/opencampus/mod/wiziq/index.php?id=" + CourseID + "&sesskey=" + "&download=xhtml"
         Dim Req As Net.HttpWebRequest = Net.WebRequest.Create(If(rbDiploma.Checked, IOUOpenCampus, IOUCampus) + "/webservice/rest/server.php?wstoken=" + Token + "&wsfunction=core_course_get_contents&courseid=" + lbCourseList.SelectedItem.ID())
         lvFiles.Items.Clear()
-        Dim Resp As Net.HttpWebResponse = Await Threading.Tasks.Task.Factory.FromAsync(Req.BeginGetResponse(Sub()
-                                                                                                            End Sub, Req), AddressOf Req.EndGetResponse)
+        Dim Resp As Net.HttpWebResponse
+        Try
+            Resp = Await Threading.Tasks.Task.Factory.FromAsync(Req.BeginGetResponse(Sub()
+                                                                                     End Sub, Req), AddressOf Req.EndGetResponse)
+        Catch ex As Net.WebException
+            lblError.Text = ex.Message
+            Return
+        End Try
         Dim MemStream As New IO.MemoryStream
-        Resp.GetResponseStream().CopyTo(MemStream)
+        Try
+            Resp.GetResponseStream().CopyTo(MemStream)
+        Catch ex As IO.IOException
+            lblError.Text = ex.Message
+            MemStream.Close()
+            Resp.Close()
+            Return
+        End Try
         MemStream.Seek(0, IO.SeekOrigin.Begin)
         Dim Reader As System.Xml.XmlReader
         If Resp.ContentType = "application/xml; charset=utf-8" Then
@@ -210,6 +266,7 @@
         XmlDoc.Load(Reader)
         Await AddFileNodes(XmlDoc.SelectNodes("/RESPONSE/MULTIPLE/SINGLE"))
         Reader.Close()
+        MemStream.Close()
         Resp.Close()
         Dim Path As String = If(txtDownloadFolder.Text = String.Empty, String.Empty, txtDownloadFolder.Text + "\") + CStr(lbCourseList.SelectedItem.ShortName).Replace(" ", String.Empty)
         If Not IO.Directory.Exists(Path) Then
@@ -223,8 +280,15 @@
             Dim FileReq As Net.HttpWebRequest = Net.WebRequest.Create(CType(lvFiles.Items(Count), FileItem).FileURL)
             FileReq.CookieContainer = New Net.CookieContainer
             FileReq.CookieContainer.Add(LoginCookies)
-            Dim FileResp As Net.HttpWebResponse = Await Threading.Tasks.Task.Factory.FromAsync(FileReq.BeginGetResponse(Sub()
-                                                                                                                        End Sub, FileReq), AddressOf FileReq.EndGetResponse)
+            Dim FileResp As Net.HttpWebResponse
+            Try
+                FileResp = Await Threading.Tasks.Task.Factory.FromAsync(FileReq.BeginGetResponse(Sub()
+                                                                                                 End Sub, FileReq), AddressOf FileReq.EndGetResponse)
+            Catch ex As Net.WebException
+                lblError.Text = ex.Message
+                CType(lvFiles.Items(Count), FileItem).UpdateStatus("Error")
+                Continue For
+            End Try
             Dim RespStream As IO.Stream = FileResp.GetResponseStream()
             If CType(lvFiles.Items(Count), FileItem).IsQuiz Then
                 If Doc Is Nothing Then
@@ -233,7 +297,18 @@
                     Writer.CloseStream = False
                     Doc.Open()
                 End If
-                Dim XHtmlFix As String = NSoup.Parse.Parser.HtmlParser.ParseInput(New IO.StreamReader(RespStream).ReadToEnd(), FileResp.ResponseUri.AbsoluteUri).Html()
+                CType(lvFiles.Items(Count), FileItem).UpdateStatus("Downloading and Fixing HTML")
+                Dim XHtmlFix As String
+                Try
+                    XHtmlFix = NSoup.Parse.Parser.HtmlParser.ParseInput(New IO.StreamReader(RespStream).ReadToEnd(), FileResp.ResponseUri.AbsoluteUri).Html()
+                Catch ex As IO.IOException
+                    lblError.Text = ex.Message
+                    CType(lvFiles.Items(Count), FileItem).UpdateStatus("Error")
+                    RespStream.Close()
+                    FileResp.Close()
+                    Continue For
+                End Try
+                CType(lvFiles.Items(Count), FileItem).UpdateStatus("Converting to PDF")
                 'remove problematic style sheet that causes iTextSharp to crash
                 XHtmlFix = System.Text.RegularExpressions.Regex.Replace(XHtmlFix, "\<link rel=\""stylesheet\"" type=\""text\/css\"" href=\""http:\/\/www\.islamiconlineuniversity\.com\/(?:open)?campus\/theme\/styles\.php\/_s\/(?:elegance|genesis)\/\d*\/all\"" \/\>", String.Empty)
                 'Dim XHtmlStream As New IO.MemoryStream(System.Text.Encoding.GetEncoding(FileResp.CharacterSet).GetBytes(XHtmlFix))
@@ -255,7 +330,6 @@
                 Dim XMLParser As New iTextSharp.tool.xml.parser.XMLParser(listener)
                 XMLParser.Parse(New IO.MemoryStream(System.Text.Encoding.UTF8.GetBytes(XHtmlFix)))
                 FixArabic(handler(5))
-                Doc.Add(handler(2))
                 Doc.Add(handler(5)) '5th element has the relevant content to eliminate headers and footers
             Else
                 'check modified/creation date
@@ -270,10 +344,36 @@
                     CType(lvFiles.Items(Count), FileItem).UpdateStatus("Downloading")
                     Dim FStream As IO.FileStream = IO.File.OpenWrite(Path + "\" + CType(lvFiles.Items(Count), FileItem).FileName)
                     Dim Buf(4095) As Byte
-                    Dim BytesRead As Integer = Await RespStream.ReadAsync(Buf, 0, 4096)
-                    While BytesRead > 0
-                        Await FStream.WriteAsync(Buf, 0, BytesRead)
+                    Dim BytesRead As Integer
+                    Try
                         BytesRead = Await RespStream.ReadAsync(Buf, 0, 4096)
+                    Catch ex As IO.IOException
+                        lblError.Text = ex.Message
+                        CType(lvFiles.Items(Count), FileItem).UpdateStatus("Error")
+                        FStream.Close()
+                        RespStream.Close()
+                        FileResp.Close()
+                        Continue For
+                    End Try
+                    Dim TotalBytes As Integer = 0
+                    While BytesRead > 0
+                        TotalBytes += BytesRead
+                        If FileResp.ContentLength = 0 Then
+                            CType(lvFiles.Items(Count), FileItem).UpdateStatus(CStr(TotalBytes) + " bytes")
+                        Else
+                            CType(lvFiles.Items(Count), FileItem).UpdateStatus((TotalBytes / FileResp.ContentLength * 100).ToString("F") + "% (" + CStr(TotalBytes) + "/" + CStr(FileResp.ContentLength) + " bytes)")
+                        End If
+                        Await FStream.WriteAsync(Buf, 0, BytesRead)
+                        Try
+                            BytesRead = Await RespStream.ReadAsync(Buf, 0, 4096)
+                        Catch ex As IO.IOException
+                            lblError.Text = ex.Message
+                            CType(lvFiles.Items(Count), FileItem).UpdateStatus("Error")
+                            FStream.Close()
+                            RespStream.Close()
+                            FileResp.Close()
+                            Continue For
+                        End Try
                     End While
                     FStream.Close()
                     If CType(lvFiles.Items(Count), FileItem).TimeModified <> New DateTime(0) Then
@@ -322,7 +422,7 @@
     End Sub
 
     Private Sub frmIOUDownload_Load(sender As Object, e As EventArgs) Handles Me.Load
-        lvFiles.Columns.Add("URL", lvFiles.Width * 4 \ 5)
+        lvFiles.Columns.Add("URL", lvFiles.Width * 7 \ 10)
         lvFiles.Columns.Add("Status")
         If MsgBox("I promise to use this application lawfully and Islamically and never to distribute the copyrighted material of Islamic Online University (IOU) and I promise to keep the module quiz printouts private and never to share them with anyone outside the IOU administration.", MsgBoxStyle.YesNo, "IOU Respect and Integrity Disclaimer") <> MsgBoxResult.Yes Then Me.Close()
     End Sub
