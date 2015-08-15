@@ -16,3 +16,8 @@
 /publish
 /bin/Debug
 /bin/Release/IOUDownloader.vshost.exe
+*.crt
+*.inf
+*.p7b
+*.csr
+/dosign.bat

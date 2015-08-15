@@ -330,6 +330,7 @@
                 Dim XMLParser As New iTextSharp.tool.xml.parser.XMLParser(listener)
                 XMLParser.Parse(New IO.MemoryStream(System.Text.Encoding.UTF8.GetBytes(XHtmlFix)))
                 FixArabic(handler(5))
+                If Not rbDiploma.Checked Then Doc.Add(handler(4))
                 Doc.Add(handler(5)) '5th element has the relevant content to eliminate headers and footers
             Else
                 'check modified/creation date
