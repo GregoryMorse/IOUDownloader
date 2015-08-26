@@ -56,7 +56,13 @@
     Public Sub PopulateCourseList()
         lbCourseList.Items.Clear()
         Dim Req As Net.HttpWebRequest = Net.WebRequest.Create(If(rbDiploma.Checked, IOUOpenCampus, IOUCampus) + "/webservice/rest/server.php?wstoken=" + Token + "&wsfunction=core_enrol_get_users_courses&userid=" + UserID)
-        Dim Resp As Net.HttpWebResponse = Req.GetResponse()
+        Dim Resp As Net.HttpWebResponse
+        Try
+            Resp = Req.GetResponse()
+        Catch ex As Net.WebException
+            lblError.Text = ex.Message
+            Return
+        End Try
         Dim MemStream As New IO.MemoryStream
         Resp.GetResponseStream().CopyTo(MemStream)
         MemStream.Seek(0, IO.SeekOrigin.Begin)
@@ -66,14 +72,23 @@
         Else 'application/json; charset=utf-8
             Reader = System.Runtime.Serialization.Json.JsonReaderWriterFactory.CreateJsonReader(MemStream.ToArray(), New System.Xml.XmlDictionaryReaderQuotas())
         End If
-        Reader.Read()
+        'Reader.Read()
         Dim XmlDoc As New Xml.XmlDocument
-        XmlDoc.Load(Reader)
+        Try
+            XmlDoc.Load(Reader)
+        Catch ex As System.Xml.XmlException
+            lblError.Text = ex.Message
+            Reader.Close()
+            MemStream.Close()
+            Resp.Close()
+            Return
+        End Try
         Dim CourseNodes As Xml.XmlNodeList = XmlDoc.SelectNodes("/RESPONSE/MULTIPLE/SINGLE")
         For Count = 0 To CourseNodes.Count - 1
             lbCourseList.Items.Add(New CourseItem With {.FullName = CourseNodes(Count).SelectSingleNode("KEY[@name='fullname']/VALUE").InnerText, .ShortName = CourseNodes(Count).SelectSingleNode("KEY[@name='shortname']/VALUE").InnerText, .ID = CourseNodes(Count).SelectSingleNode("KEY[@name='id']/VALUE").InnerText})
         Next
         Reader.Close()
+        MemStream.Close()
         Resp.Close()
     End Sub
     Private Sub btnLogin_Click(sender As Object, e As EventArgs) Handles btnLogin.Click
@@ -105,7 +120,15 @@
             Reader = System.Runtime.Serialization.Json.JsonReaderWriterFactory.CreateJsonReader(MemStream.ToArray(), System.Xml.XmlDictionaryReaderQuotas.Max)
         End If
         Dim XmlDoc As New Xml.XmlDocument
-        XmlDoc.Load(Reader)
+        Try
+            XmlDoc.Load(Reader)
+        Catch ex As System.Xml.XmlException
+            lblError.Text = ex.Message
+            Reader.Close()
+            MemStream.Close()
+            Resp.Close()
+            Return
+        End Try
         If Not XmlDoc.SelectSingleNode("/root/error") Is Nothing Then
             lblError.Text = XmlDoc.SelectSingleNode("/root/error").InnerText
         Else
@@ -263,7 +286,15 @@
             Reader = System.Runtime.Serialization.Json.JsonReaderWriterFactory.CreateJsonReader(MemStream.ToArray(), New System.Xml.XmlDictionaryReaderQuotas())
         End If
         Dim XmlDoc As New Xml.XmlDocument
-        XmlDoc.Load(Reader)
+        Try
+            XmlDoc.Load(Reader)
+        Catch ex As System.Xml.XmlException
+            lblError.Text = ex.Message
+            Reader.Close()
+            MemStream.Close()
+            Resp.Close()
+            Return
+        End Try
         Await AddFileNodes(XmlDoc.SelectNodes("/RESPONSE/MULTIPLE/SINGLE"))
         Reader.Close()
         MemStream.Close()
