@@ -1,9 +1,14 @@
 ﻿Public Class frmIOUDownload
     'Would be nice to have assignment upload verification and automatic grade checker
+    'Requests for news feed PDF and discussion forum PDF
+    'Better to save last dialog interface settings with an exception of the password
+    'Needs cancel/and cancel for smooth shutdown without crash
     Public IOUCampus As String = "http://www.islamiconlineuniversity.com/campus"
     Public IOUOpenCampus As String = "http://www.islamiconlineuniversity.com/opencampus"
-    Public Extensions As String = "*.pdf,*.pptx,*.ppt,*.docx,*.doc,*.rtf,*.xlsx,*.xls,*.mp3,*.mp4,*.flv"
     Public CourseDownloadFolder As String
+    Public Extensions As String() = {"pdf", "pptx", "ppt", "docx", "doc", "rtf", "xlsx", "xls", "mp3", "mp4", "flv", "epub", "txt", "png", "jpg", "exe", "zip", ""}
+    Public ExtensionDesc As String() = {"Portable Document Format", "PowerPoint OpenXML", "PowerPoint", "Document OpenXML", "Document", "Rich Text Format", "Excel Spreadsheet OpenXML", "Excel Spreadsheet", "Mpeg Layer 3", "Mpeg Layer 4", "Flash Video", "ePublication", "Text", "Portable Network Graphics", "Joint Photographic Experts Group", "Executable", "Zip Archive", "All Others"}
+
     Public Token As String
     Public UserID As String
     Public LoginCookies As Net.CookieCollection
@@ -216,7 +221,9 @@
         End If
         Dim Matches As System.Text.RegularExpressions.MatchCollection = System.Text.RegularExpressions.Regex.Matches(Str, "http:\/\/www.islamiconlineuniversity.com\/(?:open)?campus/pluginfile\.php.*(?=\"".*\>(.*)\<\/a\>)")
         For MatchCount = 0 To Matches.Count - 1
-            lvFiles.Items.Add(New FileItem With {.FileName = Matches(MatchCount).Groups(1).Value, .FileURL = Matches(MatchCount).Value})
+            If clbFileFormats.GetItemChecked(If(Array.IndexOf(Extensions, IO.Path.GetExtension(Matches(MatchCount).Groups(1).Value).ToLower()) <> -1, Array.IndexOf(Extensions, IO.Path.GetExtension(Matches(MatchCount).Groups(1).Value).ToLower()), Extensions.Length - 1)) Then
+                lvFiles.Items.Add(New FileItem With {.FileName = Matches(MatchCount).Groups(1).Value, .FileURL = Matches(MatchCount).Value})
+            End If
         Next
         Matches = System.Text.RegularExpressions.Regex.Matches(Str, "http:\/\/www\.islamiconlineuniversity\.com\/(?:open)?campus\/mod\/quiz\/review.php\?attempt=.*?(?=\"")")
         For MatchCount = 0 To Matches.Count - 1
@@ -456,6 +463,10 @@
     Private Sub frmIOUDownload_Load(sender As Object, e As EventArgs) Handles Me.Load
         lvFiles.Columns.Add("URL", lvFiles.Width * 7 \ 10)
         lvFiles.Columns.Add("Status")
+        For Count = 0 To Extensions.Length - 1
+            clbFileFormats.Items.Add(Extensions(Count) + " (" + ExtensionDesc(Count) + ")")
+            clbFileFormats.SetItemChecked(Count, True)
+        Next
         If MsgBox("I promise to use this application lawfully and Islamically and never to distribute the copyrighted material of Islamic Online University (IOU) and I promise to keep the module quiz printouts private and never to share them with anyone outside the IOU administration.", MsgBoxStyle.YesNo, "IOU Respect and Integrity Disclaimer") <> MsgBoxResult.Yes Then Me.Close()
     End Sub
 End Class

@@ -41,6 +41,7 @@ Partial Class frmIOUDownload
         Me.cbCourseNotes = New System.Windows.Forms.CheckBox()
         Me.cbModuleFiles = New System.Windows.Forms.CheckBox()
         Me.cbPrintModuleTestBooklet = New System.Windows.Forms.CheckBox()
+        Me.clbFileFormats = New System.Windows.Forms.CheckedListBox()
         Me.SuspendLayout()
         '
         'rbDiploma
@@ -155,7 +156,7 @@ Partial Class frmIOUDownload
         Me.lvFiles.FullRowSelect = True
         Me.lvFiles.Location = New System.Drawing.Point(12, 209)
         Me.lvFiles.Name = "lvFiles"
-        Me.lvFiles.Size = New System.Drawing.Size(502, 102)
+        Me.lvFiles.Size = New System.Drawing.Size(340, 102)
         Me.lvFiles.TabIndex = 14
         Me.lvFiles.UseCompatibleStateImageBehavior = False
         Me.lvFiles.View = System.Windows.Forms.View.Details
@@ -208,11 +209,20 @@ Partial Class frmIOUDownload
         Me.cbPrintModuleTestBooklet.Text = "Print Module Test Booklet"
         Me.cbPrintModuleTestBooklet.UseVisualStyleBackColor = True
         '
+        'clbFileFormats
+        '
+        Me.clbFileFormats.FormattingEnabled = True
+        Me.clbFileFormats.Location = New System.Drawing.Point(358, 209)
+        Me.clbFileFormats.Name = "clbFileFormats"
+        Me.clbFileFormats.Size = New System.Drawing.Size(165, 109)
+        Me.clbFileFormats.TabIndex = 19
+        '
         'frmIOUDownload
         '
         Me.AutoScaleDimensions = New System.Drawing.SizeF(6.0!, 13.0!)
         Me.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font
         Me.ClientSize = New System.Drawing.Size(526, 323)
+        Me.Controls.Add(Me.clbFileFormats)
         Me.Controls.Add(Me.cbPrintModuleTestBooklet)
         Me.Controls.Add(Me.cbModuleFiles)
         Me.Controls.Add(Me.cbCourseNotes)
@@ -255,4 +265,5 @@ End Sub
     Friend WithEvents cbCourseNotes As System.Windows.Forms.CheckBox
     Friend WithEvents cbModuleFiles As System.Windows.Forms.CheckBox
     Friend WithEvents cbPrintModuleTestBooklet As System.Windows.Forms.CheckBox
+    Friend WithEvents clbFileFormats As System.Windows.Forms.CheckedListBox
 End Class
