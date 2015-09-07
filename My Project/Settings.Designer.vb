@@ -53,6 +53,114 @@ Namespace My
                 Return defaultInstance
             End Get
         End Property
+        
+        <Global.System.Configuration.UserScopedSettingAttribute(), _
+         Global.System.Diagnostics.DebuggerNonUserCodeAttribute(), _
+         Global.System.Configuration.DefaultSettingValueAttribute("")> _
+        Public Property Username() As String
+            Get
+                Return CType(Me("Username"), String)
+            End Get
+            Set(value As String)
+                Me("Username") = value
+            End Set
+        End Property
+
+        <Global.System.Configuration.UserScopedSettingAttribute(), _
+         Global.System.Diagnostics.DebuggerNonUserCodeAttribute(), _
+         Global.System.Configuration.DefaultSettingValueAttribute("False")> _
+        Public Property UseMainCampus() As Boolean
+            Get
+                Return CType(Me("UseMainCampus"), Boolean)
+            End Get
+            Set(value As Boolean)
+                Me("UseMainCampus") = value
+            End Set
+        End Property
+
+        <Global.System.Configuration.UserScopedSettingAttribute(), _
+         Global.System.Diagnostics.DebuggerNonUserCodeAttribute(), _
+         Global.System.Configuration.DefaultSettingValueAttribute("")> _
+        Public Property DownloadFolder() As String
+            Get
+                Return CType(Me("DownloadFolder"), String)
+            End Get
+            Set(value As String)
+                Me("DownloadFolder") = value
+            End Set
+        End Property
+
+        <Global.System.Configuration.UserScopedSettingAttribute(), _
+         Global.System.Diagnostics.DebuggerNonUserCodeAttribute(), _
+         Global.System.Configuration.DefaultSettingValueAttribute("True")> _
+        Public Property GetCourseNotes() As Boolean
+            Get
+                Return CType(Me("GetCourseNotes"), Boolean)
+            End Get
+            Set(value As Boolean)
+                Me("GetCourseNotes") = value
+            End Set
+        End Property
+
+        <Global.System.Configuration.UserScopedSettingAttribute(), _
+         Global.System.Diagnostics.DebuggerNonUserCodeAttribute(), _
+         Global.System.Configuration.DefaultSettingValueAttribute("True")> _
+        Public Property GetLiveSessions() As Boolean
+            Get
+                Return CType(Me("GetLiveSessions"), Boolean)
+            End Get
+            Set(value As Boolean)
+                Me("GetLiveSessions") = value
+            End Set
+        End Property
+
+        <Global.System.Configuration.UserScopedSettingAttribute(), _
+         Global.System.Diagnostics.DebuggerNonUserCodeAttribute(), _
+         Global.System.Configuration.DefaultSettingValueAttribute("True")> _
+        Public Property GetModuleFiles() As Boolean
+            Get
+                Return CType(Me("GetModuleFiles"), Boolean)
+            End Get
+            Set(value As Boolean)
+                Me("GetModuleFiles") = value
+            End Set
+        End Property
+
+        <Global.System.Configuration.UserScopedSettingAttribute(), _
+         Global.System.Diagnostics.DebuggerNonUserCodeAttribute(), _
+         Global.System.Configuration.DefaultSettingValueAttribute("True")> _
+        Public Property PrintModuleTestBooklet() As Boolean
+            Get
+                Return CType(Me("PrintModuleTestBooklet"), Boolean)
+            End Get
+            Set(value As Boolean)
+                Me("PrintModuleTestBooklet") = value
+            End Set
+        End Property
+
+        <Global.System.Configuration.UserScopedSettingAttribute(), _
+         Global.System.Diagnostics.DebuggerNonUserCodeAttribute(), _
+         Global.System.Configuration.DefaultSettingValueAttribute("False")> _
+        Public Property AcceptedDisclaimer() As Boolean
+            Get
+                Return CType(Me("AcceptedDisclaimer"), Boolean)
+            End Get
+            Set(value As Boolean)
+                Me("AcceptedDisclaimer") = value
+            End Set
+        End Property
+
+        <Global.System.Configuration.UserScopedSettingAttribute(), _
+         Global.System.Diagnostics.DebuggerNonUserCodeAttribute(), _
+         Global.System.Configuration.DefaultSettingValueAttribute("")> _
+        Public Property Extensions() As String
+            Get
+                Return CType(Me("Extensions"), String)
+            End Get
+            Set(value As String)
+                Me("Extensions") = value
+            End Set
+        End Property
     End Class
 End Namespace
 

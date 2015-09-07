@@ -42,6 +42,7 @@ Partial Class frmIOUDownload
         Me.cbModuleFiles = New System.Windows.Forms.CheckBox()
         Me.cbPrintModuleTestBooklet = New System.Windows.Forms.CheckBox()
         Me.clbFileFormats = New System.Windows.Forms.CheckedListBox()
+        Me.btnListFiles = New System.Windows.Forms.Button()
         Me.SuspendLayout()
         '
         'rbDiploma
@@ -128,9 +129,9 @@ Partial Class frmIOUDownload
         '
         'btnDownload
         '
-        Me.btnDownload.Location = New System.Drawing.Point(424, 99)
+        Me.btnDownload.Location = New System.Drawing.Point(394, 294)
         Me.btnDownload.Name = "btnDownload"
-        Me.btnDownload.Size = New System.Drawing.Size(90, 32)
+        Me.btnDownload.Size = New System.Drawing.Size(90, 27)
         Me.btnDownload.TabIndex = 9
         Me.btnDownload.Text = "Download"
         Me.btnDownload.UseVisualStyleBackColor = True
@@ -153,6 +154,7 @@ Partial Class frmIOUDownload
         '
         'lvFiles
         '
+        Me.lvFiles.CheckBoxes = True
         Me.lvFiles.FullRowSelect = True
         Me.lvFiles.Location = New System.Drawing.Point(12, 209)
         Me.lvFiles.Name = "lvFiles"
@@ -214,14 +216,24 @@ Partial Class frmIOUDownload
         Me.clbFileFormats.FormattingEnabled = True
         Me.clbFileFormats.Location = New System.Drawing.Point(358, 209)
         Me.clbFileFormats.Name = "clbFileFormats"
-        Me.clbFileFormats.Size = New System.Drawing.Size(165, 109)
+        Me.clbFileFormats.Size = New System.Drawing.Size(165, 79)
         Me.clbFileFormats.TabIndex = 19
+        '
+        'btnListFiles
+        '
+        Me.btnListFiles.Location = New System.Drawing.Point(424, 103)
+        Me.btnListFiles.Name = "btnListFiles"
+        Me.btnListFiles.Size = New System.Drawing.Size(90, 27)
+        Me.btnListFiles.TabIndex = 20
+        Me.btnListFiles.Text = "List Files"
+        Me.btnListFiles.UseVisualStyleBackColor = True
         '
         'frmIOUDownload
         '
         Me.AutoScaleDimensions = New System.Drawing.SizeF(6.0!, 13.0!)
         Me.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font
         Me.ClientSize = New System.Drawing.Size(526, 323)
+        Me.Controls.Add(Me.btnListFiles)
         Me.Controls.Add(Me.clbFileFormats)
         Me.Controls.Add(Me.cbPrintModuleTestBooklet)
         Me.Controls.Add(Me.cbModuleFiles)
@@ -266,4 +278,5 @@ End Sub
     Friend WithEvents cbModuleFiles As System.Windows.Forms.CheckBox
     Friend WithEvents cbPrintModuleTestBooklet As System.Windows.Forms.CheckBox
     Friend WithEvents clbFileFormats As System.Windows.Forms.CheckedListBox
+    Friend WithEvents btnListFiles As System.Windows.Forms.Button
 End Class

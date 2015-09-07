@@ -1,14 +1,15 @@
 ﻿Public Class frmIOUDownload
     'Would be nice to have assignment upload verification and automatic grade checker
     'Requests for news feed PDF and discussion forum PDF
-    'Better to save last dialog interface settings with an exception of the password
+    'Password not saved and cannot be without using system encryption but goes against general policy so not implemented
     'Needs cancel/and cancel for smooth shutdown without crash
     Public IOUCampus As String = "http://www.islamiconlineuniversity.com/campus"
     Public IOUOpenCampus As String = "http://www.islamiconlineuniversity.com/opencampus"
     Public CourseDownloadFolder As String
-    Public Extensions As String() = {"pdf", "pptx", "ppt", "docx", "doc", "rtf", "xlsx", "xls", "mp3", "mp4", "flv", "epub", "txt", "png", "jpg", "exe", "zip", ""}
+    Public Extensions As String() = {"pdf", "pptx", "ppt", "docx", "doc", "rtf", "xlsx", "xls", "mp3", "mp4", "flv", "epub", "txt", "png", "jpg", "exe", "zip", String.Empty}
     Public ExtensionDesc As String() = {"Portable Document Format", "PowerPoint OpenXML", "PowerPoint", "Document OpenXML", "Document", "Rich Text Format", "Excel Spreadsheet OpenXML", "Excel Spreadsheet", "Mpeg Layer 3", "Mpeg Layer 4", "Flash Video", "ePublication", "Text", "Portable Network Graphics", "Joint Photographic Experts Group", "Executable", "Zip Archive", "All Others"}
 
+    Public Ext As Specialized.NameValueCollection
     Public Token As String
     Public UserID As String
     Public LoginCookies As Net.CookieCollection
@@ -52,6 +53,7 @@
             Text = FileName
             Status = "Pending"
             SubItems.Add(Status)
+            Checked = True
         End Sub
         Public Sub UpdateStatus(Str As String)
             Status = Str
@@ -98,6 +100,10 @@
     End Sub
     Private Sub btnLogin_Click(sender As Object, e As EventArgs) Handles btnLogin.Click
         lblError.Text = "Logging in..."
+        My.Settings.Username = txtUsername.Text
+        My.Settings.UseMainCampus = rbMainCampus.Checked
+        My.Settings.Save()
+
         'moodle_mobile_app does not have REST access only XML RPC
         'local_mobile service - additional features not tested yet
         Dim Req As Net.HttpWebRequest = Net.WebRequest.Create(If(rbDiploma.Checked, IOUOpenCampus, IOUCampus) + "/login/token.php?username=" + Net.WebUtility.HtmlEncode(txtUsername.Text) + "&password=" + Net.WebUtility.HtmlEncode(txtPassword.Text) + "&service=android")
@@ -260,7 +266,215 @@
         End If
         Return False
     End Function
+    Public Sub SaveDLSettings()
+        My.Settings.DownloadFolder = txtDownloadFolder.Text
+        My.Settings.GetCourseNotes = cbCourseNotes.Checked
+        My.Settings.GetLiveSessions = cbLiveSessions.Checked
+        My.Settings.GetModuleFiles = cbModuleFiles.Checked
+        My.Settings.PrintModuleTestBooklet = cbPrintModuleTestBooklet.Checked
+        For Count = 0 To Extensions.Length - 1
+            Ext(Extensions(Count)) = If(clbFileFormats.GetItemChecked(Count), "1", "")
+        Next
+        Dim StreamObj As New IO.MemoryStream
+        Dim BinForm As New System.Runtime.Serialization.Formatters.Binary.BinaryFormatter()
+        BinForm.Serialize(StreamObj, Ext)
+        My.Settings.Extensions = New System.Text.ASCIIEncoding().GetString(StreamObj.ToArray())
+        My.Settings.Save()
+    End Sub
     Private Async Sub btnDownload_Click(sender As Object, e As EventArgs) Handles btnDownload.Click
+        SaveDLSettings()
+        If lbCourseList.SelectedIndex = -1 Then Return
+
+        Dim Path As String = If(txtDownloadFolder.Text = String.Empty, String.Empty, txtDownloadFolder.Text + "\") + CStr(lbCourseList.SelectedItem.ShortName).Replace(" ", String.Empty)
+        If Not IO.Directory.Exists(Path) Then
+            IO.Directory.CreateDirectory(Path)
+        End If
+        Dim msOutput As New IO.MemoryStream()
+        Dim Doc As iTextSharp.text.Document = Nothing
+        Dim Writer As iTextSharp.text.pdf.PdfWriter = Nothing
+        For Count As Integer = 0 To lvFiles.Items.Count - 1
+            If lvFiles.Items(Count).Checked Then
+                CType(lvFiles.Items(Count), FileItem).UpdateStatus("Checking")
+                Dim FileReq As Net.HttpWebRequest = Net.WebRequest.Create(CType(lvFiles.Items(Count), FileItem).FileURL)
+                FileReq.CookieContainer = New Net.CookieContainer
+                FileReq.CookieContainer.Add(LoginCookies)
+                Dim FileResp As Net.HttpWebResponse
+                Try
+                    FileResp = Await Threading.Tasks.Task.Factory.FromAsync(FileReq.BeginGetResponse(Sub()
+                                                                                                     End Sub, FileReq), AddressOf FileReq.EndGetResponse)
+                Catch ex As Net.WebException
+                    lblError.Text = ex.Message
+                    CType(lvFiles.Items(Count), FileItem).UpdateStatus("Error")
+                    Continue For
+                End Try
+                Dim RespStream As IO.Stream = FileResp.GetResponseStream()
+                If CType(lvFiles.Items(Count), FileItem).IsQuiz Then
+                    If Doc Is Nothing Then
+                        Doc = New iTextSharp.text.Document(iTextSharp.text.PageSize.A4, 30, 30, 30, 30)
+                        Writer = iTextSharp.text.pdf.PdfWriter.GetInstance(Doc, msOutput)
+                        Writer.CloseStream = False
+                        Doc.Open()
+                    End If
+                    CType(lvFiles.Items(Count), FileItem).UpdateStatus("Downloading and Fixing HTML")
+                    Dim XHtmlFix As String
+                    Try
+                        XHtmlFix = NSoup.Parse.Parser.HtmlParser.ParseInput(New IO.StreamReader(RespStream).ReadToEnd(), FileResp.ResponseUri.AbsoluteUri).Html()
+                    Catch ex As IO.IOException
+                        lblError.Text = ex.Message
+                        CType(lvFiles.Items(Count), FileItem).UpdateStatus("Error")
+                        RespStream.Close()
+                        FileResp.Close()
+                        Continue For
+                    End Try
+                    CType(lvFiles.Items(Count), FileItem).UpdateStatus("Converting to PDF")
+                    'remove problematic style sheet that causes iTextSharp to crash
+                    XHtmlFix = System.Text.RegularExpressions.Regex.Replace(XHtmlFix, "\<link rel=\""stylesheet\"" type=\""text\/css\"" href=\""http:\/\/www\.islamiconlineuniversity\.com\/(?:open)?campus\/theme\/styles\.php\/_s\/(?:elegance|genesis)\/\d*\/all\"" \/\>", String.Empty)
+                    'Dim XHtmlStream As New IO.MemoryStream(System.Text.Encoding.GetEncoding(FileResp.CharacterSet).GetBytes(XHtmlFix))
+                    'XHtmlStream.Seek(0, IO.SeekOrigin.Begin)
+                    'iTextSharp.tool.xml.XMLWorkerHelper.GetInstance().ParseXHtml(Writer, Doc, XHtmlStream, System.Text.Encoding.GetEncoding(FileResp.CharacterSet))
+                    'XHtmlStream.Close()
+                    'need to take the following snippet adapted from XML parser for Unicode fonts to support Arabic
+                    Dim cssResolver As New iTextSharp.tool.xml.css.StyleAttrCSSResolver
+                    Dim cssAppliers As New iTextSharp.tool.xml.html.CssAppliersImpl(New UnicodeFontProvider())
+                    Dim hpc As New iTextSharp.tool.xml.pipeline.html.HtmlPipelineContext(cssAppliers)
+                    hpc.CharSet(System.Text.Encoding.UTF8)
+                    hpc.SetTagFactory(iTextSharp.tool.xml.html.Tags.GetHtmlTagProcessorFactory)
+                    hpc.AutoBookmark(False)
+                    Dim handler As New iTextSharp.tool.xml.ElementList
+                    Dim [next] As New iTextSharp.tool.xml.pipeline.end.ElementHandlerPipeline(handler, Nothing)
+                    Dim pipeline2 As New iTextSharp.tool.xml.pipeline.html.HtmlPipeline(hpc, [next])
+                    Dim pipeline As New iTextSharp.tool.xml.pipeline.css.CssResolverPipeline(cssResolver, pipeline2)
+                    Dim listener As New iTextSharp.tool.xml.XMLWorker(pipeline, True)
+                    Dim XMLParser As New iTextSharp.tool.xml.parser.XMLParser(listener)
+                    XMLParser.Parse(New IO.MemoryStream(System.Text.Encoding.UTF8.GetBytes(XHtmlFix)))
+                    FixArabic(handler(5))
+                    If Not rbDiploma.Checked Then Doc.Add(handler(4))
+                    Doc.Add(handler(5)) '5th element has the relevant content to eliminate headers and footers
+                Else
+                    'check modified/creation date
+                    Dim Length As Long = 0
+                    If IO.File.Exists(Path + "\" + CType(lvFiles.Items(Count), FileItem).FileName) Then
+                        Dim File As IO.FileStream = IO.File.Open(Path + "\" + CType(lvFiles.Items(Count), FileItem).FileName, IO.FileMode.Open)
+                        Length = File.Length
+                        File.Close()
+                    End If
+                    If IO.File.Exists(Path + "\" + CType(lvFiles.Items(Count), FileItem).FileName) AndAlso Length <> 0 AndAlso (Length = CType(lvFiles.Items(Count), FileItem).FileSize Or Length = FileResp.ContentLength) AndAlso ((FileResp.LastModified <> New DateTime(0) And FileResp.LastModified.Subtract(Now).TotalSeconds <= 1) AndAlso IO.File.GetLastWriteTime(Path + "\" + CType(lvFiles.Items(Count), FileItem).FileName) >= FileResp.LastModified Or CType(lvFiles.Items(Count), FileItem).TimeModified <> New DateTime(0) AndAlso IO.File.GetLastWriteTime(Path + "\" + CType(lvFiles.Items(Count), FileItem).FileName) >= CType(lvFiles.Items(Count), FileItem).TimeModified) Then
+                    Else
+                        CType(lvFiles.Items(Count), FileItem).UpdateStatus("Downloading")
+                        Dim FStream As IO.FileStream = IO.File.OpenWrite(Path + "\" + CType(lvFiles.Items(Count), FileItem).FileName)
+                        Dim Buf(4095) As Byte
+                        Dim BytesRead As Integer
+                        Try
+                            BytesRead = Await RespStream.ReadAsync(Buf, 0, 4096)
+                        Catch ex As IO.IOException
+                            lblError.Text = ex.Message
+                            CType(lvFiles.Items(Count), FileItem).UpdateStatus("Error")
+                            FStream.Close()
+                            RespStream.Close()
+                            FileResp.Close()
+                            Continue For
+                        End Try
+                        Dim TotalBytes As Integer = 0
+                        While BytesRead > 0
+                            TotalBytes += BytesRead
+                            If FileResp.ContentLength = 0 Then
+                                CType(lvFiles.Items(Count), FileItem).UpdateStatus(CStr(TotalBytes) + " bytes")
+                            Else
+                                CType(lvFiles.Items(Count), FileItem).UpdateStatus((TotalBytes / FileResp.ContentLength * 100).ToString("F") + "% (" + CStr(TotalBytes) + "/" + CStr(FileResp.ContentLength) + " bytes)")
+                            End If
+                            Await FStream.WriteAsync(Buf, 0, BytesRead)
+                            Try
+                                BytesRead = Await RespStream.ReadAsync(Buf, 0, 4096)
+                            Catch ex As IO.IOException
+                                lblError.Text = ex.Message
+                                CType(lvFiles.Items(Count), FileItem).UpdateStatus("Error")
+                                FStream.Close()
+                                RespStream.Close()
+                                FileResp.Close()
+                                Continue For
+                            End Try
+                        End While
+                        FStream.Close()
+                        If CType(lvFiles.Items(Count), FileItem).TimeModified <> New DateTime(0) Then
+                            IO.File.SetLastWriteTime(Path + "\" + CType(lvFiles.Items(Count), FileItem).FileName, CType(lvFiles.Items(Count), FileItem).TimeModified)
+                        ElseIf FileResp.LastModified <> New DateTime(0) And FileResp.LastModified.Subtract(Now).TotalSeconds <= 1 Then
+                            IO.File.SetLastWriteTime(Path + "\" + CType(lvFiles.Items(Count), FileItem).FileName, FileResp.LastModified)
+                        End If
+                    End If
+                End If
+                RespStream.Close()
+                FileResp.Close()
+                CType(lvFiles.Items(Count), FileItem).UpdateStatus("Complete")
+            Else
+                CType(lvFiles.Items(Count), FileItem).UpdateStatus("Skipped")
+            End If
+        Next
+        If Not Doc Is Nothing Then
+            Doc.Close()
+            If cbPrintModuleTestBooklet.Checked Then
+                Dim OutFile As IO.FileStream = IO.File.Create(Path + "\ModuleQuizBooklet.pdf")
+                msOutput.Seek(0, IO.SeekOrigin.Begin)
+                OutFile.Write(msOutput.ToArray(), 0, msOutput.Length)
+                OutFile.Close()
+            End If
+            Writer.Close()
+        End If
+        msOutput.Close()
+    End Sub
+    Private Sub btnSetDownloadFolder_Click(sender As Object, e As EventArgs) Handles btnSetDownloadFolder.Click
+        If fbdMain.ShowDialog() = Windows.Forms.DialogResult.OK Then
+            txtDownloadFolder.Text = fbdMain.SelectedPath
+            SaveDLSettings()
+        End If
+    End Sub
+
+    Private Sub rbMainCampus_CheckedChanged(sender As Object, e As EventArgs) Handles rbMainCampus.CheckedChanged
+        lbCourseList.Items.Clear()
+        lvFiles.Items.Clear()
+        UserID = String.Empty
+        Token = String.Empty
+        LoginCookies = Nothing
+    End Sub
+
+    Private Sub rbDiploma_CheckedChanged(sender As Object, e As EventArgs) Handles rbDiploma.CheckedChanged
+        lbCourseList.Items.Clear()
+        lvFiles.Items.Clear()
+        UserID = String.Empty
+        Token = String.Empty
+        LoginCookies = Nothing
+    End Sub
+
+    Private Sub frmIOUDownload_Load(sender As Object, e As EventArgs) Handles Me.Load
+        txtUsername.Text = My.Settings.Username
+        rbDiploma.Checked = Not My.Settings.UseMainCampus
+        rbMainCampus.Checked = My.Settings.UseMainCampus
+
+        txtDownloadFolder.Text = My.Settings.DownloadFolder
+        cbCourseNotes.Checked = My.Settings.GetCourseNotes
+        cbLiveSessions.Checked = My.Settings.GetLiveSessions
+        cbModuleFiles.Checked = My.Settings.GetModuleFiles
+        cbPrintModuleTestBooklet.Checked = My.Settings.PrintModuleTestBooklet
+        lvFiles.Columns.Add("URL", lvFiles.Width * 7 \ 10)
+        lvFiles.Columns.Add("Status")
+        If My.Settings.Extensions <> String.Empty Then
+            Ext = New System.Runtime.Serialization.Formatters.Binary.BinaryFormatter().Deserialize(New IO.MemoryStream(System.Text.Encoding.ASCII.GetBytes(My.Settings.Extensions.ToCharArray())))
+        Else
+            Ext = New Specialized.NameValueCollection
+            For Count = 0 To Extensions.Length - 1
+                Ext(Extensions(Count)) = "1"
+            Next
+        End If
+        For Count = 0 To Extensions.Length - 1
+            clbFileFormats.Items.Add(Extensions(Count) + " (" + ExtensionDesc(Count) + ")")
+            clbFileFormats.SetItemChecked(Count, Not String.IsNullOrEmpty(Ext(Extensions(Count))))
+        Next
+        If Not My.Settings.AcceptedDisclaimer AndAlso MsgBox("I promise to use this application lawfully and Islamically and never to distribute the copyrighted material of Islamic Online University (IOU) and I promise to keep the module quiz printouts private and never to share them with anyone outside the IOU administration.", MsgBoxStyle.YesNo, "IOU Respect and Integrity Disclaimer") <> MsgBoxResult.Yes Then Me.Close()
+        My.Settings.AcceptedDisclaimer = True
+        My.Settings.Save()
+    End Sub
+
+    Private Async Sub btnListFiles_Click(sender As Object, e As EventArgs) Handles btnListFiles.Click
+        SaveDLSettings()
         If lbCourseList.SelectedIndex = -1 Then Return
         GetLoginCookies()
         'how to get a sesskey without crawling page that has the download link anyway?
@@ -310,163 +524,5 @@
         If Not IO.Directory.Exists(Path) Then
             IO.Directory.CreateDirectory(Path)
         End If
-        Dim msOutput As New IO.MemoryStream()
-        Dim Doc As iTextSharp.text.Document = Nothing
-        Dim Writer As iTextSharp.text.pdf.PdfWriter = Nothing
-        For Count As Integer = 0 To lvFiles.Items.Count - 1
-            CType(lvFiles.Items(Count), FileItem).UpdateStatus("Checking")
-            Dim FileReq As Net.HttpWebRequest = Net.WebRequest.Create(CType(lvFiles.Items(Count), FileItem).FileURL)
-            FileReq.CookieContainer = New Net.CookieContainer
-            FileReq.CookieContainer.Add(LoginCookies)
-            Dim FileResp As Net.HttpWebResponse
-            Try
-                FileResp = Await Threading.Tasks.Task.Factory.FromAsync(FileReq.BeginGetResponse(Sub()
-                                                                                                 End Sub, FileReq), AddressOf FileReq.EndGetResponse)
-            Catch ex As Net.WebException
-                lblError.Text = ex.Message
-                CType(lvFiles.Items(Count), FileItem).UpdateStatus("Error")
-                Continue For
-            End Try
-            Dim RespStream As IO.Stream = FileResp.GetResponseStream()
-            If CType(lvFiles.Items(Count), FileItem).IsQuiz Then
-                If Doc Is Nothing Then
-                    Doc = New iTextSharp.text.Document(iTextSharp.text.PageSize.A4, 30, 30, 30, 30)
-                    Writer = iTextSharp.text.pdf.PdfWriter.GetInstance(Doc, msOutput)
-                    Writer.CloseStream = False
-                    Doc.Open()
-                End If
-                CType(lvFiles.Items(Count), FileItem).UpdateStatus("Downloading and Fixing HTML")
-                Dim XHtmlFix As String
-                Try
-                    XHtmlFix = NSoup.Parse.Parser.HtmlParser.ParseInput(New IO.StreamReader(RespStream).ReadToEnd(), FileResp.ResponseUri.AbsoluteUri).Html()
-                Catch ex As IO.IOException
-                    lblError.Text = ex.Message
-                    CType(lvFiles.Items(Count), FileItem).UpdateStatus("Error")
-                    RespStream.Close()
-                    FileResp.Close()
-                    Continue For
-                End Try
-                CType(lvFiles.Items(Count), FileItem).UpdateStatus("Converting to PDF")
-                'remove problematic style sheet that causes iTextSharp to crash
-                XHtmlFix = System.Text.RegularExpressions.Regex.Replace(XHtmlFix, "\<link rel=\""stylesheet\"" type=\""text\/css\"" href=\""http:\/\/www\.islamiconlineuniversity\.com\/(?:open)?campus\/theme\/styles\.php\/_s\/(?:elegance|genesis)\/\d*\/all\"" \/\>", String.Empty)
-                'Dim XHtmlStream As New IO.MemoryStream(System.Text.Encoding.GetEncoding(FileResp.CharacterSet).GetBytes(XHtmlFix))
-                'XHtmlStream.Seek(0, IO.SeekOrigin.Begin)
-                'iTextSharp.tool.xml.XMLWorkerHelper.GetInstance().ParseXHtml(Writer, Doc, XHtmlStream, System.Text.Encoding.GetEncoding(FileResp.CharacterSet))
-                'XHtmlStream.Close()
-                'need to take the following snippet adapted from XML parser for Unicode fonts to support Arabic
-                Dim cssResolver As New iTextSharp.tool.xml.css.StyleAttrCSSResolver
-                Dim cssAppliers As New iTextSharp.tool.xml.html.CssAppliersImpl(New UnicodeFontProvider())
-                Dim hpc As New iTextSharp.tool.xml.pipeline.html.HtmlPipelineContext(cssAppliers)
-                hpc.CharSet(System.Text.Encoding.UTF8)
-                hpc.SetTagFactory(iTextSharp.tool.xml.html.Tags.GetHtmlTagProcessorFactory)
-                hpc.AutoBookmark(False)
-                Dim handler As New iTextSharp.tool.xml.ElementList
-                Dim [next] As New iTextSharp.tool.xml.pipeline.end.ElementHandlerPipeline(handler, Nothing)
-                Dim pipeline2 As New iTextSharp.tool.xml.pipeline.html.HtmlPipeline(hpc, [next])
-                Dim pipeline As New iTextSharp.tool.xml.pipeline.css.CssResolverPipeline(cssResolver, pipeline2)
-                Dim listener As New iTextSharp.tool.xml.XMLWorker(pipeline, True)
-                Dim XMLParser As New iTextSharp.tool.xml.parser.XMLParser(listener)
-                XMLParser.Parse(New IO.MemoryStream(System.Text.Encoding.UTF8.GetBytes(XHtmlFix)))
-                FixArabic(handler(5))
-                If Not rbDiploma.Checked Then Doc.Add(handler(4))
-                Doc.Add(handler(5)) '5th element has the relevant content to eliminate headers and footers
-            Else
-                'check modified/creation date
-                Dim Length As Long = 0
-                If IO.File.Exists(Path + "\" + CType(lvFiles.Items(Count), FileItem).FileName) Then
-                    Dim File As IO.FileStream = IO.File.Open(Path + "\" + CType(lvFiles.Items(Count), FileItem).FileName, IO.FileMode.Open)
-                    Length = File.Length
-                    File.Close()
-                End If
-                If IO.File.Exists(Path + "\" + CType(lvFiles.Items(Count), FileItem).FileName) AndAlso Length <> 0 AndAlso (Length = CType(lvFiles.Items(Count), FileItem).FileSize Or Length = FileResp.ContentLength) AndAlso ((FileResp.LastModified <> New DateTime(0) And FileResp.LastModified.Subtract(Now).TotalSeconds <= 1) AndAlso IO.File.GetLastWriteTime(Path + "\" + CType(lvFiles.Items(Count), FileItem).FileName) >= FileResp.LastModified Or CType(lvFiles.Items(Count), FileItem).TimeModified <> New DateTime(0) AndAlso IO.File.GetLastWriteTime(Path + "\" + CType(lvFiles.Items(Count), FileItem).FileName) >= CType(lvFiles.Items(Count), FileItem).TimeModified) Then
-                Else
-                    CType(lvFiles.Items(Count), FileItem).UpdateStatus("Downloading")
-                    Dim FStream As IO.FileStream = IO.File.OpenWrite(Path + "\" + CType(lvFiles.Items(Count), FileItem).FileName)
-                    Dim Buf(4095) As Byte
-                    Dim BytesRead As Integer
-                    Try
-                        BytesRead = Await RespStream.ReadAsync(Buf, 0, 4096)
-                    Catch ex As IO.IOException
-                        lblError.Text = ex.Message
-                        CType(lvFiles.Items(Count), FileItem).UpdateStatus("Error")
-                        FStream.Close()
-                        RespStream.Close()
-                        FileResp.Close()
-                        Continue For
-                    End Try
-                    Dim TotalBytes As Integer = 0
-                    While BytesRead > 0
-                        TotalBytes += BytesRead
-                        If FileResp.ContentLength = 0 Then
-                            CType(lvFiles.Items(Count), FileItem).UpdateStatus(CStr(TotalBytes) + " bytes")
-                        Else
-                            CType(lvFiles.Items(Count), FileItem).UpdateStatus((TotalBytes / FileResp.ContentLength * 100).ToString("F") + "% (" + CStr(TotalBytes) + "/" + CStr(FileResp.ContentLength) + " bytes)")
-                        End If
-                        Await FStream.WriteAsync(Buf, 0, BytesRead)
-                        Try
-                            BytesRead = Await RespStream.ReadAsync(Buf, 0, 4096)
-                        Catch ex As IO.IOException
-                            lblError.Text = ex.Message
-                            CType(lvFiles.Items(Count), FileItem).UpdateStatus("Error")
-                            FStream.Close()
-                            RespStream.Close()
-                            FileResp.Close()
-                            Continue For
-                        End Try
-                    End While
-                    FStream.Close()
-                    If CType(lvFiles.Items(Count), FileItem).TimeModified <> New DateTime(0) Then
-                        IO.File.SetLastWriteTime(Path + "\" + CType(lvFiles.Items(Count), FileItem).FileName, CType(lvFiles.Items(Count), FileItem).TimeModified)
-                    ElseIf FileResp.LastModified <> New DateTime(0) And FileResp.LastModified.Subtract(Now).TotalSeconds <= 1 Then
-                        IO.File.SetLastWriteTime(Path + "\" + CType(lvFiles.Items(Count), FileItem).FileName, FileResp.LastModified)
-                    End If
-                End If
-            End If
-            RespStream.Close()
-            FileResp.Close()
-            CType(lvFiles.Items(Count), FileItem).UpdateStatus("Complete")
-        Next
-        If Not Doc Is Nothing Then
-            Doc.Close()
-            If cbPrintModuleTestBooklet.Checked Then
-                Dim OutFile As IO.FileStream = IO.File.Create(Path + "\ModuleQuizBooklet.pdf")
-                msOutput.Seek(0, IO.SeekOrigin.Begin)
-                OutFile.Write(msOutput.ToArray(), 0, msOutput.Length)
-                OutFile.Close()
-            End If
-            Writer.Close()
-        End If
-        msOutput.Close()
-    End Sub
-    Private Sub btnSetDownloadFolder_Click(sender As Object, e As EventArgs) Handles btnSetDownloadFolder.Click
-        If fbdMain.ShowDialog() = Windows.Forms.DialogResult.OK Then
-            txtDownloadFolder.Text = fbdMain.SelectedPath
-        End If
-    End Sub
-
-    Private Sub rbMainCampus_CheckedChanged(sender As Object, e As EventArgs) Handles rbMainCampus.CheckedChanged
-        lbCourseList.Items.Clear()
-        lvFiles.Items.Clear()
-        UserID = String.Empty
-        Token = String.Empty
-        LoginCookies = Nothing
-    End Sub
-
-    Private Sub rbDiploma_CheckedChanged(sender As Object, e As EventArgs) Handles rbDiploma.CheckedChanged
-        lbCourseList.Items.Clear()
-        lvFiles.Items.Clear()
-        UserID = String.Empty
-        Token = String.Empty
-        LoginCookies = Nothing
-    End Sub
-
-    Private Sub frmIOUDownload_Load(sender As Object, e As EventArgs) Handles Me.Load
-        lvFiles.Columns.Add("URL", lvFiles.Width * 7 \ 10)
-        lvFiles.Columns.Add("Status")
-        For Count = 0 To Extensions.Length - 1
-            clbFileFormats.Items.Add(Extensions(Count) + " (" + ExtensionDesc(Count) + ")")
-            clbFileFormats.SetItemChecked(Count, True)
-        Next
-        If MsgBox("I promise to use this application lawfully and Islamically and never to distribute the copyrighted material of Islamic Online University (IOU) and I promise to keep the module quiz printouts private and never to share them with anyone outside the IOU administration.", MsgBoxStyle.YesNo, "IOU Respect and Integrity Disclaimer") <> MsgBoxResult.Yes Then Me.Close()
     End Sub
 End Class
