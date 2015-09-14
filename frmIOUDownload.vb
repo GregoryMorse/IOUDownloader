@@ -467,7 +467,14 @@
         lvFiles.Columns.Add("URL", lvFiles.Width * 7 \ 10)
         lvFiles.Columns.Add("Status")
         If My.Settings.Extensions <> String.Empty Then
-            Ext = New System.Runtime.Serialization.Formatters.Binary.BinaryFormatter().Deserialize(New IO.MemoryStream(System.Text.Encoding.ASCII.GetBytes(My.Settings.Extensions.ToCharArray())))
+            Try
+                Ext = New System.Runtime.Serialization.Formatters.Binary.BinaryFormatter().Deserialize(New IO.MemoryStream(System.Text.Encoding.ASCII.GetBytes(My.Settings.Extensions.ToCharArray())))
+            Catch ex As System.Runtime.Serialization.SerializationException
+                Ext = New Specialized.NameValueCollection
+                For Count = 0 To Extensions.Length - 1
+                    Ext(Extensions(Count)) = "1"
+                Next
+            End Try
         Else
             Ext = New Specialized.NameValueCollection
             For Count = 0 To Extensions.Length - 1
