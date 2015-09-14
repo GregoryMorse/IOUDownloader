@@ -3,6 +3,7 @@
     'Requests for news feed PDF and discussion forum PDF
     'Password not saved and cannot be without using system encryption but goes against general policy so not implemented
     'Needs cancel/and cancel for smooth shutdown without crash
+    'Linux: sudo apt-get install mono-complete mono-mcs monodevelop libmono-microsoft-visualbasic8.0-cil libmono-microsoft-visualbasic10.0-cil
     Public IOUCampus As String = "http://www.islamiconlineuniversity.com/campus"
     Public IOUOpenCampus As String = "http://www.islamiconlineuniversity.com/opencampus"
     Public CourseDownloadFolder As String
@@ -287,7 +288,7 @@
         SaveDLSettings()
         If lbCourseList.SelectedIndex = -1 Then Return
 
-        Dim Path As String = If(txtDownloadFolder.Text = String.Empty, String.Empty, txtDownloadFolder.Text + "\") + CStr(lbCourseList.SelectedItem.ShortName).Replace(" ", String.Empty)
+        Dim Path As String = IO.Path.Combine(If(txtDownloadFolder.Text = String.Empty, String.Empty, txtDownloadFolder.Text), CStr(lbCourseList.SelectedItem.ShortName).Replace(" ", String.Empty))
         If Not IO.Directory.Exists(Path) Then
             IO.Directory.CreateDirectory(Path)
         End If
@@ -355,18 +356,18 @@
                 Else
                     'check modified/creation date
                     Dim Length As Long = 0
-                    If cbSubfolders.Checked AndAlso Not IO.Directory.Exists(Path + If(cbSubfolders.Checked, "\" + CType(lvFiles.Items(Count), FileItem).Folder, String.Empty)) Then
-                        IO.Directory.CreateDirectory(Path + If(cbSubfolders.Checked, "\" + CType(lvFiles.Items(Count), FileItem).Folder, String.Empty))
+                    If cbSubfolders.Checked AndAlso Not IO.Directory.Exists(IO.Path.Combine(Path, If(cbSubfolders.Checked, CType(lvFiles.Items(Count), FileItem).Folder, String.Empty))) Then
+                        IO.Directory.CreateDirectory(IO.Path.Combine(Path, If(cbSubfolders.Checked, CType(lvFiles.Items(Count), FileItem).Folder, String.Empty)))
                     End If
-                    If IO.File.Exists(Path + If(cbSubfolders.Checked, "\" + CType(lvFiles.Items(Count), FileItem).Folder, String.Empty) + "\" + CType(lvFiles.Items(Count), FileItem).FileName) Then
-                        Dim File As IO.FileStream = IO.File.Open(Path + If(cbSubfolders.Checked, "\" + CType(lvFiles.Items(Count), FileItem).Folder, String.Empty) + "\" + CType(lvFiles.Items(Count), FileItem).FileName, IO.FileMode.Open)
+                    If IO.File.Exists(IO.Path.Combine(Path, If(cbSubfolders.Checked, CType(lvFiles.Items(Count), FileItem).Folder, String.Empty), CType(lvFiles.Items(Count), FileItem).FileName)) Then
+                        Dim File As IO.FileStream = IO.File.Open(IO.Path.Combine(Path, If(cbSubfolders.Checked, CType(lvFiles.Items(Count), FileItem).Folder, String.Empty), CType(lvFiles.Items(Count), FileItem).FileName), IO.FileMode.Open)
                         Length = File.Length
                         File.Close()
                     End If
-                    If IO.File.Exists(Path + If(cbSubfolders.Checked, "\" + CType(lvFiles.Items(Count), FileItem).Folder, String.Empty) + "\" + CType(lvFiles.Items(Count), FileItem).FileName) AndAlso Length <> 0 AndAlso (Length = CType(lvFiles.Items(Count), FileItem).FileSize Or Length = FileResp.ContentLength) AndAlso ((FileResp.LastModified <> New DateTime(0) And FileResp.LastModified.Subtract(Now).TotalSeconds <= 1) AndAlso IO.File.GetLastWriteTime(Path + "\" + CType(lvFiles.Items(Count), FileItem).FileName) >= FileResp.LastModified Or CType(lvFiles.Items(Count), FileItem).TimeModified <> New DateTime(0) AndAlso IO.File.GetLastWriteTime(Path + "\" + CType(lvFiles.Items(Count), FileItem).FileName) >= CType(lvFiles.Items(Count), FileItem).TimeModified) Then
+                    If IO.File.Exists(IO.Path.Combine(Path, If(cbSubfolders.Checked, CType(lvFiles.Items(Count), FileItem).Folder, String.Empty), CType(lvFiles.Items(Count), FileItem).FileName)) AndAlso Length <> 0 AndAlso (Length = CType(lvFiles.Items(Count), FileItem).FileSize Or Length = FileResp.ContentLength) AndAlso ((FileResp.LastModified <> New DateTime(0) And FileResp.LastModified.Subtract(Now).TotalSeconds <= 1) AndAlso IO.File.GetLastWriteTime(IO.Path.Combine(Path, If(cbSubfolders.Checked, CType(lvFiles.Items(Count), FileItem).Folder, String.Empty), CType(lvFiles.Items(Count), FileItem).FileName)) >= FileResp.LastModified Or CType(lvFiles.Items(Count), FileItem).TimeModified <> New DateTime(0) AndAlso IO.File.GetLastWriteTime(IO.Path.Combine(Path, If(cbSubfolders.Checked, CType(lvFiles.Items(Count), FileItem).Folder, String.Empty), CType(lvFiles.Items(Count), FileItem).FileName)) >= CType(lvFiles.Items(Count), FileItem).TimeModified) Then
                     Else
                         CType(lvFiles.Items(Count), FileItem).UpdateStatus("Downloading")
-                        Dim FStream As IO.FileStream = IO.File.OpenWrite(Path + If(cbSubfolders.Checked, "\" + CType(lvFiles.Items(Count), FileItem).Folder, String.Empty) + "\" + CType(lvFiles.Items(Count), FileItem).FileName)
+                        Dim FStream As IO.FileStream = IO.File.OpenWrite(IO.Path.Combine(Path, If(cbSubfolders.Checked, CType(lvFiles.Items(Count), FileItem).Folder, String.Empty), CType(lvFiles.Items(Count), FileItem).FileName))
                         Dim Buf(4095) As Byte
                         Dim BytesRead As Integer
                         Try
@@ -401,9 +402,9 @@
                         End While
                         FStream.Close()
                         If CType(lvFiles.Items(Count), FileItem).TimeModified <> New DateTime(0) Then
-                            IO.File.SetLastWriteTime(Path + If(cbSubfolders.Checked, "\" + CType(lvFiles.Items(Count), FileItem).Folder, String.Empty) + "\" + CType(lvFiles.Items(Count), FileItem).FileName, CType(lvFiles.Items(Count), FileItem).TimeModified)
+                            IO.File.SetLastWriteTime(IO.Path.Combine(Path, If(cbSubfolders.Checked, CType(lvFiles.Items(Count), FileItem).Folder, String.Empty), CType(lvFiles.Items(Count), FileItem).FileName), CType(lvFiles.Items(Count), FileItem).TimeModified)
                         ElseIf FileResp.LastModified <> New DateTime(0) And FileResp.LastModified.Subtract(Now).TotalSeconds <= 1 Then
-                            IO.File.SetLastWriteTime(Path + If(cbSubfolders.Checked, "\" + CType(lvFiles.Items(Count), FileItem).Folder, String.Empty) + "\" + CType(lvFiles.Items(Count), FileItem).FileName, FileResp.LastModified)
+                            IO.File.SetLastWriteTime(IO.Path.Combine(Path, If(cbSubfolders.Checked, CType(lvFiles.Items(Count), FileItem).Folder, String.Empty), CType(lvFiles.Items(Count), FileItem).FileName), FileResp.LastModified)
                         End If
                     End If
                 End If
@@ -529,7 +530,7 @@
         Reader.Close()
         MemStream.Close()
         Resp.Close()
-        Dim Path As String = If(txtDownloadFolder.Text = String.Empty, String.Empty, txtDownloadFolder.Text + "\") + CStr(lbCourseList.SelectedItem.ShortName).Replace(" ", String.Empty)
+        Dim Path As String = IO.Path.Combine(If(txtDownloadFolder.Text = String.Empty, String.Empty, txtDownloadFolder.Text), CStr(lbCourseList.SelectedItem.ShortName).Replace(" ", String.Empty))
         If Not IO.Directory.Exists(Path) Then
             IO.Directory.CreateDirectory(Path)
         End If
