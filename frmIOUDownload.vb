@@ -48,6 +48,7 @@
         Public TimeModified As DateTime
         Public FileSize As Long
         Public Status As String
+        Public Folder As String
         Public IsQuiz As Boolean
         Public Sub New()
             Text = FileName
@@ -220,7 +221,7 @@
         End Try
         'No file size and modified date information so this can only be verified with HTTP headers which are usually not set
         If System.Text.RegularExpressions.Regex.Match(Str, "https:\/\/www\.wiziq\.com\/class\/download.aspx\?.*(?=\"")").Success Then
-            lvFiles.Items.Add(New FileItem With {.FileName = UrlName.Replace(" ", String.Empty) + ".zip", .FileURL = System.Text.RegularExpressions.Regex.Match(Str, "https:\/\/www\.wiziq\.com\/class\/download.aspx\?.*(?=\"")").Value})
+            lvFiles.Items.Add(New FileItem With {.FileName = UrlName.Replace(" ", String.Empty) + ".zip", .Folder = "LiveSessions", .FileURL = System.Text.RegularExpressions.Regex.Match(Str, "https:\/\/www\.wiziq\.com\/class\/download.aspx\?.*(?=\"")").Value})
         ElseIf System.Text.RegularExpressions.Regex.Match(Str, "class=\""next\"" href=\""(.*)\""").Success Then
             'must page through each page through next links until exhausted recursively to get all notes
             Await CrawlUrl(New Uri(Req.RequestUri.GetLeftPart(UriPartial.Path) + "\..\").GetLeftPart(UriPartial.Path) + Net.WebUtility.HtmlDecode(System.Text.RegularExpressions.Regex.Match(Str, "class=\""next\"" href=\""(.*)\""").Groups(1).Value), String.Empty)
@@ -228,24 +229,24 @@
         Dim Matches As System.Text.RegularExpressions.MatchCollection = System.Text.RegularExpressions.Regex.Matches(Str, "http:\/\/www.islamiconlineuniversity.com\/(?:open)?campus/pluginfile\.php.*(?=\"".*\>(.*)\<\/a\>)")
         For MatchCount = 0 To Matches.Count - 1
             If clbFileFormats.GetItemChecked(If(Array.IndexOf(Extensions, IO.Path.GetExtension(Matches(MatchCount).Groups(1).Value).ToLower()) <> -1, Array.IndexOf(Extensions, IO.Path.GetExtension(Matches(MatchCount).Groups(1).Value).ToLower()), Extensions.Length - 1)) Then
-                lvFiles.Items.Add(New FileItem With {.FileName = Matches(MatchCount).Groups(1).Value, .FileURL = Matches(MatchCount).Value})
+                lvFiles.Items.Add(New FileItem With {.FileName = Matches(MatchCount).Groups(1).Value, .Folder = "CourseNotes", .FileURL = Matches(MatchCount).Value})
             End If
         Next
         Matches = System.Text.RegularExpressions.Regex.Matches(Str, "http:\/\/www\.islamiconlineuniversity\.com\/(?:open)?campus\/mod\/quiz\/review.php\?attempt=.*?(?=\"")")
         For MatchCount = 0 To Matches.Count - 1
-            lvFiles.Items.Add(New FileItem With {.FileName = UrlName.Replace(" ", String.Empty) + CStr(MatchCount) + ".html", .FileURL = Matches(MatchCount).Value, .IsQuiz = True})
+            lvFiles.Items.Add(New FileItem With {.FileName = UrlName.Replace(" ", String.Empty) + CStr(MatchCount) + ".html", .Folder = "ModuleQuizzes", .FileURL = Matches(MatchCount).Value, .IsQuiz = True})
         Next
         Stream.Close()
         Resp.Close()
     End Function
-    Public Async Function AddFileNodes(CourseNodes As Xml.XmlNodeList) As Threading.Tasks.Task
+    Public Async Function AddFileNodes(CourseNodes As Xml.XmlNodeList, Name As String) As Threading.Tasks.Task
         For Count = 0 To CourseNodes.Count - 1
-            Await AddFileNodes(CourseNodes(Count).SelectNodes("KEY/MULTIPLE/SINGLE"))
+            Await AddFileNodes(CourseNodes(Count).SelectNodes("KEY/MULTIPLE/SINGLE"), If(Not CourseNodes(Count).SelectSingleNode("KEY[@name='name']/VALUE") Is Nothing, CourseNodes(Count).SelectSingleNode("KEY[@name='name']/VALUE").InnerText, String.Empty))
             If Not CourseNodes(Count).SelectSingleNode("KEY[@name='modname']/VALUE") Is Nothing AndAlso CourseNodes(Count).SelectSingleNode("KEY[@name='modname']/VALUE").InnerText = "quiz" And cbPrintModuleTestBooklet.Checked Then
                 Await CrawlUrl(CourseNodes(Count).SelectSingleNode("KEY[@name='url']/VALUE").InnerText, Net.WebUtility.HtmlDecode(CourseNodes(Count).SelectSingleNode("KEY[@name='name']/VALUE").InnerText).Replace("&", "+").Replace(":", "-"))
             ElseIf Not CourseNodes(Count).SelectSingleNode("KEY[@name='type']/VALUE") Is Nothing AndAlso CourseNodes(Count).SelectSingleNode("KEY[@name='type']/VALUE").InnerText = "file" Then
                 If cbModuleFiles.Checked And Not CourseNodes(Count).SelectSingleNode("KEY[@name='filename']/VALUE").InnerText.EndsWith(".html") Then
-                    lvFiles.Items.Add(New FileItem With {.FileName = CourseNodes(Count).SelectSingleNode("KEY[@name='filename']/VALUE").InnerText, .TimeCreated = New DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc).AddSeconds(CLng(CourseNodes(Count).SelectSingleNode("KEY[@name='timecreated']/VALUE").InnerText)), .TimeModified = New DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc).AddSeconds(CLng(CourseNodes(Count).SelectSingleNode("KEY[@name='timemodified']/VALUE").InnerText)), .FileSize = CourseNodes(Count).SelectSingleNode("KEY[@name='filesize']/VALUE").InnerText, .FileURL = CourseNodes(Count).SelectSingleNode("KEY[@name='fileurl']/VALUE").InnerText + "&token=" + Token})
+                    lvFiles.Items.Add(New FileItem With {.FileName = CourseNodes(Count).SelectSingleNode("KEY[@name='filename']/VALUE").InnerText, .Folder = If(Name <> String.Empty, Name.Replace(" "c, String.Empty), "ModuleFiles"), .TimeCreated = New DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc).AddSeconds(CLng(CourseNodes(Count).SelectSingleNode("KEY[@name='timecreated']/VALUE").InnerText)), .TimeModified = New DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc).AddSeconds(CLng(CourseNodes(Count).SelectSingleNode("KEY[@name='timemodified']/VALUE").InnerText)), .FileSize = CourseNodes(Count).SelectSingleNode("KEY[@name='filesize']/VALUE").InnerText, .FileURL = CourseNodes(Count).SelectSingleNode("KEY[@name='fileurl']/VALUE").InnerText + "&token=" + Token})
                 End If
             ElseIf Not CourseNodes(Count).SelectSingleNode("KEY[@name='modname']/VALUE") Is Nothing AndAlso (CourseNodes(Count).SelectSingleNode("KEY[@name='modname']/VALUE").InnerText = "data" And cbCourseNotes.Checked Or CourseNodes(Count).SelectSingleNode("KEY[@name='modname']/VALUE").InnerText = "wiziq" And cbLiveSessions.Checked) Then
                 Await CrawlUrl(CourseNodes(Count).SelectSingleNode("KEY[@name='url']/VALUE").InnerText, Net.WebUtility.HtmlDecode(CourseNodes(Count).SelectSingleNode("KEY[@name='name']/VALUE").InnerText).Replace("&", "+").Replace(":", "-"))
@@ -271,6 +272,7 @@
         My.Settings.GetCourseNotes = cbCourseNotes.Checked
         My.Settings.GetLiveSessions = cbLiveSessions.Checked
         My.Settings.GetModuleFiles = cbModuleFiles.Checked
+        My.Settings.GetSubfolders = cbSubfolders.Checked
         My.Settings.PrintModuleTestBooklet = cbPrintModuleTestBooklet.Checked
         For Count = 0 To Extensions.Length - 1
             Ext(Extensions(Count)) = If(clbFileFormats.GetItemChecked(Count), "1", "")
@@ -353,15 +355,18 @@
                 Else
                     'check modified/creation date
                     Dim Length As Long = 0
-                    If IO.File.Exists(Path + "\" + CType(lvFiles.Items(Count), FileItem).FileName) Then
-                        Dim File As IO.FileStream = IO.File.Open(Path + "\" + CType(lvFiles.Items(Count), FileItem).FileName, IO.FileMode.Open)
+                    If cbSubfolders.Checked AndAlso Not IO.Directory.Exists(Path + If(cbSubfolders.Checked, "\" + CType(lvFiles.Items(Count), FileItem).Folder, String.Empty)) Then
+                        IO.Directory.CreateDirectory(Path + If(cbSubfolders.Checked, "\" + CType(lvFiles.Items(Count), FileItem).Folder, String.Empty))
+                    End If
+                    If IO.File.Exists(Path + If(cbSubfolders.Checked, "\" + CType(lvFiles.Items(Count), FileItem).Folder, String.Empty) + "\" + CType(lvFiles.Items(Count), FileItem).FileName) Then
+                        Dim File As IO.FileStream = IO.File.Open(Path + If(cbSubfolders.Checked, "\" + CType(lvFiles.Items(Count), FileItem).Folder, String.Empty) + "\" + CType(lvFiles.Items(Count), FileItem).FileName, IO.FileMode.Open)
                         Length = File.Length
                         File.Close()
                     End If
-                    If IO.File.Exists(Path + "\" + CType(lvFiles.Items(Count), FileItem).FileName) AndAlso Length <> 0 AndAlso (Length = CType(lvFiles.Items(Count), FileItem).FileSize Or Length = FileResp.ContentLength) AndAlso ((FileResp.LastModified <> New DateTime(0) And FileResp.LastModified.Subtract(Now).TotalSeconds <= 1) AndAlso IO.File.GetLastWriteTime(Path + "\" + CType(lvFiles.Items(Count), FileItem).FileName) >= FileResp.LastModified Or CType(lvFiles.Items(Count), FileItem).TimeModified <> New DateTime(0) AndAlso IO.File.GetLastWriteTime(Path + "\" + CType(lvFiles.Items(Count), FileItem).FileName) >= CType(lvFiles.Items(Count), FileItem).TimeModified) Then
+                    If IO.File.Exists(Path + If(cbSubfolders.Checked, "\" + CType(lvFiles.Items(Count), FileItem).Folder, String.Empty) + "\" + CType(lvFiles.Items(Count), FileItem).FileName) AndAlso Length <> 0 AndAlso (Length = CType(lvFiles.Items(Count), FileItem).FileSize Or Length = FileResp.ContentLength) AndAlso ((FileResp.LastModified <> New DateTime(0) And FileResp.LastModified.Subtract(Now).TotalSeconds <= 1) AndAlso IO.File.GetLastWriteTime(Path + "\" + CType(lvFiles.Items(Count), FileItem).FileName) >= FileResp.LastModified Or CType(lvFiles.Items(Count), FileItem).TimeModified <> New DateTime(0) AndAlso IO.File.GetLastWriteTime(Path + "\" + CType(lvFiles.Items(Count), FileItem).FileName) >= CType(lvFiles.Items(Count), FileItem).TimeModified) Then
                     Else
                         CType(lvFiles.Items(Count), FileItem).UpdateStatus("Downloading")
-                        Dim FStream As IO.FileStream = IO.File.OpenWrite(Path + "\" + CType(lvFiles.Items(Count), FileItem).FileName)
+                        Dim FStream As IO.FileStream = IO.File.OpenWrite(Path + If(cbSubfolders.Checked, "\" + CType(lvFiles.Items(Count), FileItem).Folder, String.Empty) + "\" + CType(lvFiles.Items(Count), FileItem).FileName)
                         Dim Buf(4095) As Byte
                         Dim BytesRead As Integer
                         Try
@@ -396,9 +401,9 @@
                         End While
                         FStream.Close()
                         If CType(lvFiles.Items(Count), FileItem).TimeModified <> New DateTime(0) Then
-                            IO.File.SetLastWriteTime(Path + "\" + CType(lvFiles.Items(Count), FileItem).FileName, CType(lvFiles.Items(Count), FileItem).TimeModified)
+                            IO.File.SetLastWriteTime(Path + If(cbSubfolders.Checked, "\" + CType(lvFiles.Items(Count), FileItem).Folder, String.Empty) + "\" + CType(lvFiles.Items(Count), FileItem).FileName, CType(lvFiles.Items(Count), FileItem).TimeModified)
                         ElseIf FileResp.LastModified <> New DateTime(0) And FileResp.LastModified.Subtract(Now).TotalSeconds <= 1 Then
-                            IO.File.SetLastWriteTime(Path + "\" + CType(lvFiles.Items(Count), FileItem).FileName, FileResp.LastModified)
+                            IO.File.SetLastWriteTime(Path + If(cbSubfolders.Checked, "\" + CType(lvFiles.Items(Count), FileItem).Folder, String.Empty) + "\" + CType(lvFiles.Items(Count), FileItem).FileName, FileResp.LastModified)
                         End If
                     End If
                 End If
@@ -412,7 +417,10 @@
         If Not Doc Is Nothing Then
             Doc.Close()
             If cbPrintModuleTestBooklet.Checked Then
-                Dim OutFile As IO.FileStream = IO.File.Create(Path + "\ModuleQuizBooklet.pdf")
+                If cbSubfolders.Checked AndAlso Not IO.Directory.Exists(Path + If(cbSubfolders.Checked, "\ModuleQuizzes", String.Empty)) Then
+                    IO.Directory.CreateDirectory(Path + If(cbSubfolders.Checked, "\ModuleQuizzes", String.Empty))
+                End If
+                Dim OutFile As IO.FileStream = IO.File.Create(Path + If(cbSubfolders.Checked, "\ModuleQuizzes", String.Empty) + "\ModuleQuizBooklet.pdf")
                 msOutput.Seek(0, IO.SeekOrigin.Begin)
                 OutFile.Write(msOutput.ToArray(), 0, msOutput.Length)
                 OutFile.Close()
@@ -453,6 +461,7 @@
         cbCourseNotes.Checked = My.Settings.GetCourseNotes
         cbLiveSessions.Checked = My.Settings.GetLiveSessions
         cbModuleFiles.Checked = My.Settings.GetModuleFiles
+        cbSubfolders.Checked = My.Settings.GetSubfolders
         cbPrintModuleTestBooklet.Checked = My.Settings.PrintModuleTestBooklet
         lvFiles.Columns.Add("URL", lvFiles.Width * 7 \ 10)
         lvFiles.Columns.Add("Status")
@@ -516,7 +525,7 @@
             Resp.Close()
             Return
         End Try
-        Await AddFileNodes(XmlDoc.SelectNodes("/RESPONSE/MULTIPLE/SINGLE"))
+        Await AddFileNodes(XmlDoc.SelectNodes("/RESPONSE/MULTIPLE/SINGLE"), String.Empty)
         Reader.Close()
         MemStream.Close()
         Resp.Close()

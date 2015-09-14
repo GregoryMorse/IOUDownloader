@@ -43,6 +43,7 @@ Partial Class frmIOUDownload
         Me.cbPrintModuleTestBooklet = New System.Windows.Forms.CheckBox()
         Me.clbFileFormats = New System.Windows.Forms.CheckedListBox()
         Me.btnListFiles = New System.Windows.Forms.Button()
+        Me.cbSubfolders = New System.Windows.Forms.CheckBox()
         Me.SuspendLayout()
         '
         'rbDiploma
@@ -168,7 +169,7 @@ Partial Class frmIOUDownload
         Me.cbLiveSessions.AutoSize = True
         Me.cbLiveSessions.Checked = True
         Me.cbLiveSessions.CheckState = System.Windows.Forms.CheckState.Checked
-        Me.cbLiveSessions.Location = New System.Drawing.Point(423, 186)
+        Me.cbLiveSessions.Location = New System.Drawing.Point(432, 186)
         Me.cbLiveSessions.Name = "cbLiveSessions"
         Me.cbLiveSessions.Size = New System.Drawing.Size(91, 17)
         Me.cbLiveSessions.TabIndex = 15
@@ -180,7 +181,7 @@ Partial Class frmIOUDownload
         Me.cbCourseNotes.AutoSize = True
         Me.cbCourseNotes.Checked = True
         Me.cbCourseNotes.CheckState = System.Windows.Forms.CheckState.Checked
-        Me.cbCourseNotes.Location = New System.Drawing.Point(326, 186)
+        Me.cbCourseNotes.Location = New System.Drawing.Point(336, 186)
         Me.cbCourseNotes.Name = "cbCourseNotes"
         Me.cbCourseNotes.Size = New System.Drawing.Size(90, 17)
         Me.cbCourseNotes.TabIndex = 16
@@ -192,7 +193,7 @@ Partial Class frmIOUDownload
         Me.cbModuleFiles.AutoSize = True
         Me.cbModuleFiles.Checked = True
         Me.cbModuleFiles.CheckState = System.Windows.Forms.CheckState.Checked
-        Me.cbModuleFiles.Location = New System.Drawing.Point(220, 186)
+        Me.cbModuleFiles.Location = New System.Drawing.Point(245, 186)
         Me.cbModuleFiles.Name = "cbModuleFiles"
         Me.cbModuleFiles.Size = New System.Drawing.Size(85, 17)
         Me.cbModuleFiles.TabIndex = 17
@@ -204,7 +205,7 @@ Partial Class frmIOUDownload
         Me.cbPrintModuleTestBooklet.AutoSize = True
         Me.cbPrintModuleTestBooklet.Checked = True
         Me.cbPrintModuleTestBooklet.CheckState = System.Windows.Forms.CheckState.Checked
-        Me.cbPrintModuleTestBooklet.Location = New System.Drawing.Point(24, 186)
+        Me.cbPrintModuleTestBooklet.Location = New System.Drawing.Point(91, 186)
         Me.cbPrintModuleTestBooklet.Name = "cbPrintModuleTestBooklet"
         Me.cbPrintModuleTestBooklet.Size = New System.Drawing.Size(148, 17)
         Me.cbPrintModuleTestBooklet.TabIndex = 18
@@ -228,11 +229,24 @@ Partial Class frmIOUDownload
         Me.btnListFiles.Text = "List Files"
         Me.btnListFiles.UseVisualStyleBackColor = True
         '
+        'cbSubfolders
+        '
+        Me.cbSubfolders.AutoSize = True
+        Me.cbSubfolders.Checked = True
+        Me.cbSubfolders.CheckState = System.Windows.Forms.CheckState.Checked
+        Me.cbSubfolders.Location = New System.Drawing.Point(12, 186)
+        Me.cbSubfolders.Name = "cbSubfolders"
+        Me.cbSubfolders.Size = New System.Drawing.Size(76, 17)
+        Me.cbSubfolders.TabIndex = 21
+        Me.cbSubfolders.Text = "Subfolders"
+        Me.cbSubfolders.UseVisualStyleBackColor = True
+        '
         'frmIOUDownload
         '
         Me.AutoScaleDimensions = New System.Drawing.SizeF(6.0!, 13.0!)
         Me.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font
         Me.ClientSize = New System.Drawing.Size(526, 323)
+        Me.Controls.Add(Me.cbSubfolders)
         Me.Controls.Add(Me.btnListFiles)
         Me.Controls.Add(Me.clbFileFormats)
         Me.Controls.Add(Me.cbPrintModuleTestBooklet)
@@ -279,4 +293,5 @@ End Sub
     Friend WithEvents cbPrintModuleTestBooklet As System.Windows.Forms.CheckBox
     Friend WithEvents clbFileFormats As System.Windows.Forms.CheckedListBox
     Friend WithEvents btnListFiles As System.Windows.Forms.Button
+    Friend WithEvents cbSubfolders As System.Windows.Forms.CheckBox
 End Class

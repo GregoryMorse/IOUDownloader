@@ -149,6 +149,12 @@
     <Compile Include="frmIOUDownload.vb">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="frmTrial.Designer.vb">
+      <DependentUpon>frmTrial.vb</DependentUpon>
+    </Compile>
+    <Compile Include="frmTrial.vb">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="My Project\AssemblyInfo.vb" />
     <Compile Include="My Project\Application.Designer.vb">
       <AutoGen>True</AutoGen>
@@ -168,6 +174,9 @@
   <ItemGroup>
     <EmbeddedResource Include="frmIOUDownload.resx">
       <DependentUpon>frmIOUDownload.vb</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="frmTrial.resx">
+      <DependentUpon>frmTrial.vb</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="My Project\Resources.resx">
       <Generator>VbMyResourcesResXFileCodeGenerator</Generator>
