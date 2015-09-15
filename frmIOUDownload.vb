@@ -229,7 +229,7 @@
         End If
         Dim Matches As System.Text.RegularExpressions.MatchCollection = System.Text.RegularExpressions.Regex.Matches(Str, "http:\/\/www.islamiconlineuniversity.com\/(?:open)?campus/pluginfile\.php.*(?=\"".*\>(.*)\<\/a\>)")
         For MatchCount = 0 To Matches.Count - 1
-            If clbFileFormats.GetItemChecked(If(Array.IndexOf(Extensions, IO.Path.GetExtension(Matches(MatchCount).Groups(1).Value).ToLower()) <> -1, Array.IndexOf(Extensions, IO.Path.GetExtension(Matches(MatchCount).Groups(1).Value).ToLower()), Extensions.Length - 1)) Then
+            If clbFileFormats.GetItemChecked(If(Array.IndexOf(Extensions, IO.Path.GetExtension(Matches(MatchCount).Groups(1).Value).ToLower().TrimStart(".")) <> -1, Array.IndexOf(Extensions, IO.Path.GetExtension(Matches(MatchCount).Groups(1).Value).ToLower().TrimStart(".")), Extensions.Length - 1)) Then
                 lvFiles.Items.Add(New FileItem With {.FileName = Matches(MatchCount).Groups(1).Value, .Folder = "CourseNotes", .FileURL = Matches(MatchCount).Value})
             End If
         Next
@@ -246,7 +246,7 @@
             If Not CourseNodes(Count).SelectSingleNode("KEY[@name='modname']/VALUE") Is Nothing AndAlso CourseNodes(Count).SelectSingleNode("KEY[@name='modname']/VALUE").InnerText = "quiz" And cbPrintModuleTestBooklet.Checked Then
                 Await CrawlUrl(CourseNodes(Count).SelectSingleNode("KEY[@name='url']/VALUE").InnerText, Net.WebUtility.HtmlDecode(CourseNodes(Count).SelectSingleNode("KEY[@name='name']/VALUE").InnerText).Replace("&", "+").Replace(":", "-"))
             ElseIf Not CourseNodes(Count).SelectSingleNode("KEY[@name='type']/VALUE") Is Nothing AndAlso CourseNodes(Count).SelectSingleNode("KEY[@name='type']/VALUE").InnerText = "file" Then
-                If cbModuleFiles.Checked And Not CourseNodes(Count).SelectSingleNode("KEY[@name='filename']/VALUE").InnerText.EndsWith(".html") Then
+                If cbModuleFiles.Checked And Not CourseNodes(Count).SelectSingleNode("KEY[@name='filename']/VALUE").InnerText.EndsWith(".html") And clbFileFormats.GetItemChecked(If(Array.IndexOf(Extensions, IO.Path.GetExtension(CourseNodes(Count).SelectSingleNode("KEY[@name='filename']/VALUE").InnerText).ToLower().TrimStart(".")) <> -1, Array.IndexOf(Extensions, IO.Path.GetExtension(CourseNodes(Count).SelectSingleNode("KEY[@name='filename']/VALUE").InnerText).ToLower().TrimStart(".")), Extensions.Length - 1)) Then
                     lvFiles.Items.Add(New FileItem With {.FileName = CourseNodes(Count).SelectSingleNode("KEY[@name='filename']/VALUE").InnerText, .Folder = If(Name <> String.Empty, Name.Replace(" "c, String.Empty), "ModuleFiles"), .TimeCreated = New DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc).AddSeconds(CLng(CourseNodes(Count).SelectSingleNode("KEY[@name='timecreated']/VALUE").InnerText)), .TimeModified = New DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc).AddSeconds(CLng(CourseNodes(Count).SelectSingleNode("KEY[@name='timemodified']/VALUE").InnerText)), .FileSize = CourseNodes(Count).SelectSingleNode("KEY[@name='filesize']/VALUE").InnerText, .FileURL = CourseNodes(Count).SelectSingleNode("KEY[@name='fileurl']/VALUE").InnerText + "&token=" + Token})
                 End If
             ElseIf Not CourseNodes(Count).SelectSingleNode("KEY[@name='modname']/VALUE") Is Nothing AndAlso (CourseNodes(Count).SelectSingleNode("KEY[@name='modname']/VALUE").InnerText = "data" And cbCourseNotes.Checked Or CourseNodes(Count).SelectSingleNode("KEY[@name='modname']/VALUE").InnerText = "wiziq" And cbLiveSessions.Checked) Then
@@ -470,12 +470,10 @@
             Try
                 Ext = New System.Runtime.Serialization.Formatters.Binary.BinaryFormatter().Deserialize(New IO.MemoryStream(System.Text.Encoding.ASCII.GetBytes(My.Settings.Extensions.ToCharArray())))
             Catch ex As System.Runtime.Serialization.SerializationException
-                Ext = New Specialized.NameValueCollection
-                For Count = 0 To Extensions.Length - 1
-                    Ext(Extensions(Count)) = "1"
-                Next
+            Catch ex As System.NotSupportedException
             End Try
-        Else
+        End If
+        If Ext Is Nothing Then
             Ext = New Specialized.NameValueCollection
             For Count = 0 To Extensions.Length - 1
                 Ext(Extensions(Count)) = "1"
