@@ -21,3 +21,4 @@
 *.p7b
 *.csr
 /dosign.bat
+*.userprefs

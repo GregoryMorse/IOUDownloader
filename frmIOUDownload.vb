@@ -288,7 +288,7 @@
         SaveDLSettings()
         If lbCourseList.SelectedIndex = -1 Then Return
 
-        Dim Path As String = IO.Path.Combine(If(txtDownloadFolder.Text = String.Empty, String.Empty, txtDownloadFolder.Text), CStr(lbCourseList.SelectedItem.ShortName).Replace(" ", String.Empty))
+        Dim Path As String = IO.Path.Combine(If(txtDownloadFolder.Text = String.Empty, String.Empty, txtDownloadFolder.Text + "/"), CStr(lbCourseList.SelectedItem.ShortName).Replace(" ", String.Empty))
         If Not IO.Directory.Exists(Path) Then
             IO.Directory.CreateDirectory(Path)
         End If
@@ -535,7 +535,7 @@
         Reader.Close()
         MemStream.Close()
         Resp.Close()
-        Dim Path As String = IO.Path.Combine(If(txtDownloadFolder.Text = String.Empty, String.Empty, txtDownloadFolder.Text), CStr(lbCourseList.SelectedItem.ShortName).Replace(" ", String.Empty))
+        Dim Path As String = IO.Path.Combine(If(txtDownloadFolder.Text = String.Empty, String.Empty, txtDownloadFolder.Text + "/"), CStr(lbCourseList.SelectedItem.ShortName).Replace(" ", String.Empty))
         If Not IO.Directory.Exists(Path) Then
             IO.Directory.CreateDirectory(Path)
         End If
