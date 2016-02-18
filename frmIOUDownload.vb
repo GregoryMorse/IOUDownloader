@@ -94,7 +94,9 @@
         End Try
         Dim CourseNodes As Xml.XmlNodeList = XmlDoc.SelectNodes("/RESPONSE/MULTIPLE/SINGLE")
         For Count = 0 To CourseNodes.Count - 1
-            lbCourseList.Items.Add(New CourseItem With {.FullName = CourseNodes(Count).SelectSingleNode("KEY[@name='fullname']/VALUE").InnerText, .ShortName = CourseNodes(Count).SelectSingleNode("KEY[@name='shortname']/VALUE").InnerText, .ID = CourseNodes(Count).SelectSingleNode("KEY[@name='id']/VALUE").InnerText})
+            If Not CourseNodes(Count).SelectSingleNode("KEY[@name='fullname']/VALUE") Is Nothing And Not CourseNodes(Count).SelectSingleNode("KEY[@name='shortname']/VALUE") Is Nothing And Not CourseNodes(Count).SelectSingleNode("KEY[@name='id']/VALUE") Is Nothing Then
+                lbCourseList.Items.Add(New CourseItem With {.FullName = CourseNodes(Count).SelectSingleNode("KEY[@name='fullname']/VALUE").InnerText, .ShortName = CourseNodes(Count).SelectSingleNode("KEY[@name='shortname']/VALUE").InnerText, .ID = CourseNodes(Count).SelectSingleNode("KEY[@name='id']/VALUE").InnerText})
+            End If
         Next
         Reader.Close()
         MemStream.Close()
@@ -145,10 +147,14 @@
         If Not XmlDoc.SelectSingleNode("/root/error") Is Nothing Then
             lblError.Text = XmlDoc.SelectSingleNode("/root/error").InnerText
         Else
-            UserID = XmlDoc.SelectSingleNode("/root/userid").InnerText
-            Token = XmlDoc.SelectSingleNode("/root/token").InnerText
-            lblError.Text = String.Empty
-            PopulateCourseList()
+            If XmlDoc.SelectSingleNode("/root/userid") Is Nothing Or Not XmlDoc.SelectSingleNode("/root/token") Is Nothing Then
+                lblError.Text = "Cannot login - iste returned bad XML document"
+            Else
+                UserID = XmlDoc.SelectSingleNode("/root/userid").InnerText
+                Token = XmlDoc.SelectSingleNode("/root/token").InnerText
+                lblError.Text = String.Empty
+                PopulateCourseList()
+            End If
         End If
         Reader.Close()
         MemStream.Close()
@@ -243,13 +249,13 @@
     Public Async Function AddFileNodes(CourseNodes As Xml.XmlNodeList, Name As String) As Threading.Tasks.Task
         For Count = 0 To CourseNodes.Count - 1
             Await AddFileNodes(CourseNodes(Count).SelectNodes("KEY/MULTIPLE/SINGLE"), If(Not CourseNodes(Count).SelectSingleNode("KEY[@name='name']/VALUE") Is Nothing, CourseNodes(Count).SelectSingleNode("KEY[@name='name']/VALUE").InnerText, String.Empty))
-            If Not CourseNodes(Count).SelectSingleNode("KEY[@name='modname']/VALUE") Is Nothing AndAlso CourseNodes(Count).SelectSingleNode("KEY[@name='modname']/VALUE").InnerText = "quiz" And cbPrintModuleTestBooklet.Checked Then
+            If Not CourseNodes(Count).SelectSingleNode("KEY[@name='modname']/VALUE") Is Nothing AndAlso CourseNodes(Count).SelectSingleNode("KEY[@name='modname']/VALUE").InnerText = "quiz" And cbPrintModuleTestBooklet.Checked And Not CourseNodes(Count).SelectSingleNode("KEY[@name='url']/VALUE") Is Nothing And Not CourseNodes(Count).SelectSingleNode("KEY[@name='name']/VALUE") Is Nothing Then
                 Await CrawlUrl(CourseNodes(Count).SelectSingleNode("KEY[@name='url']/VALUE").InnerText, Net.WebUtility.HtmlDecode(CourseNodes(Count).SelectSingleNode("KEY[@name='name']/VALUE").InnerText).Replace("&", "+").Replace(":", "-"))
             ElseIf Not CourseNodes(Count).SelectSingleNode("KEY[@name='type']/VALUE") Is Nothing AndAlso CourseNodes(Count).SelectSingleNode("KEY[@name='type']/VALUE").InnerText = "file" Then
-                If cbModuleFiles.Checked And Not CourseNodes(Count).SelectSingleNode("KEY[@name='filename']/VALUE").InnerText.EndsWith(".html") And clbFileFormats.GetItemChecked(If(Array.IndexOf(Extensions, IO.Path.GetExtension(CourseNodes(Count).SelectSingleNode("KEY[@name='filename']/VALUE").InnerText).ToLower().TrimStart(".")) <> -1, Array.IndexOf(Extensions, IO.Path.GetExtension(CourseNodes(Count).SelectSingleNode("KEY[@name='filename']/VALUE").InnerText).ToLower().TrimStart(".")), Extensions.Length - 1)) Then
-                    lvFiles.Items.Add(New FileItem With {.FileName = CourseNodes(Count).SelectSingleNode("KEY[@name='filename']/VALUE").InnerText, .Folder = If(Name <> String.Empty, Name.Replace(" "c, String.Empty), "ModuleFiles"), .TimeCreated = New DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc).AddSeconds(CLng(CourseNodes(Count).SelectSingleNode("KEY[@name='timecreated']/VALUE").InnerText)), .TimeModified = New DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc).AddSeconds(CLng(CourseNodes(Count).SelectSingleNode("KEY[@name='timemodified']/VALUE").InnerText)), .FileSize = CourseNodes(Count).SelectSingleNode("KEY[@name='filesize']/VALUE").InnerText, .FileURL = CourseNodes(Count).SelectSingleNode("KEY[@name='fileurl']/VALUE").InnerText + "&token=" + Token})
+                If cbModuleFiles.Checked And Not CourseNodes(Count).SelectSingleNode("KEY[@name='fileurl']/VALUE") Is Nothing And Not CourseNodes(Count).SelectSingleNode("KEY[@name='filename']/VALUE") Is Nothing AndAlso Not CourseNodes(Count).SelectSingleNode("KEY[@name='filename']/VALUE").InnerText.EndsWith(".html") And clbFileFormats.GetItemChecked(If(Array.IndexOf(Extensions, IO.Path.GetExtension(CourseNodes(Count).SelectSingleNode("KEY[@name='filename']/VALUE").InnerText).ToLower().TrimStart(".")) <> -1, Array.IndexOf(Extensions, IO.Path.GetExtension(CourseNodes(Count).SelectSingleNode("KEY[@name='filename']/VALUE").InnerText).ToLower().TrimStart(".")), Extensions.Length - 1)) Then
+                    lvFiles.Items.Add(New FileItem With {.FileName = CourseNodes(Count).SelectSingleNode("KEY[@name='filename']/VALUE").InnerText, .Folder = If(Name <> String.Empty, Name.Replace(" "c, String.Empty), "ModuleFiles"), .TimeCreated = New DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc).AddSeconds(If(CourseNodes(Count).SelectSingleNode("KEY[@name='timecreated']/VALUE").InnerText Is Nothing, 0, CLng(CourseNodes(Count).SelectSingleNode("KEY[@name='timecreated']/VALUE").InnerText))), .TimeModified = New DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc).AddSeconds(If(CourseNodes(Count).SelectSingleNode("KEY[@name='timemodified']/VALUE").InnerText Is Nothing, 0, CLng(CourseNodes(Count).SelectSingleNode("KEY[@name='timemodified']/VALUE").InnerText))), .FileSize = If(CourseNodes(Count).SelectSingleNode("KEY[@name='filesize']/VALUE") Is Nothing, 0, CLng(CourseNodes(Count).SelectSingleNode("KEY[@name='filesize']/VALUE").InnerText)), .FileURL = CourseNodes(Count).SelectSingleNode("KEY[@name='fileurl']/VALUE").InnerText + "&token=" + Token})
                 End If
-            ElseIf Not CourseNodes(Count).SelectSingleNode("KEY[@name='modname']/VALUE") Is Nothing AndAlso (CourseNodes(Count).SelectSingleNode("KEY[@name='modname']/VALUE").InnerText = "data" And cbCourseNotes.Checked Or CourseNodes(Count).SelectSingleNode("KEY[@name='modname']/VALUE").InnerText = "wiziq" And cbLiveSessions.Checked) Then
+            ElseIf Not CourseNodes(Count).SelectSingleNode("KEY[@name='modname']/VALUE") Is Nothing AndAlso (CourseNodes(Count).SelectSingleNode("KEY[@name='modname']/VALUE").InnerText = "data" And cbCourseNotes.Checked Or CourseNodes(Count).SelectSingleNode("KEY[@name='modname']/VALUE").InnerText = "wiziq" And cbLiveSessions.Checked) And Not CourseNodes(Count).SelectSingleNode("KEY[@name='url']/VALUE") Is Nothing And Not CourseNodes(Count).SelectSingleNode("KEY[@name='name']/VALUE") Is Nothing Then
                 Await CrawlUrl(CourseNodes(Count).SelectSingleNode("KEY[@name='url']/VALUE").InnerText, Net.WebUtility.HtmlDecode(CourseNodes(Count).SelectSingleNode("KEY[@name='name']/VALUE").InnerText).Replace("&", "+").Replace(":", "-"))
             End If
         Next
