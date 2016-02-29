@@ -147,8 +147,8 @@
         If Not XmlDoc.SelectSingleNode("/root/error") Is Nothing Then
             lblError.Text = XmlDoc.SelectSingleNode("/root/error").InnerText
         Else
-            If XmlDoc.SelectSingleNode("/root/userid") Is Nothing Or Not XmlDoc.SelectSingleNode("/root/token") Is Nothing Then
-                lblError.Text = "Cannot login - iste returned bad XML document"
+            If XmlDoc.SelectSingleNode("/root/userid") Is Nothing Or XmlDoc.SelectSingleNode("/root/token") Is Nothing Then
+                lblError.Text = "Cannot login - server returned bad XML document"
             Else
                 UserID = XmlDoc.SelectSingleNode("/root/userid").InnerText
                 Token = XmlDoc.SelectSingleNode("/root/token").InnerText
