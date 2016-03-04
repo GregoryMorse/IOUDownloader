@@ -1,4 +1,6 @@
-﻿Public Class frmIOUDownload
+﻿Imports System.ComponentModel
+
+Public Class frmIOUDownload
     'Would be nice to have assignment upload verification and automatic grade checker
     'Requests for news feed PDF and discussion forum PDF
     'Password not saved and cannot be without using system encryption but goes against general policy so not implemented
@@ -14,6 +16,8 @@
     Public Token As String
     Public UserID As String
     Public LoginCookies As Net.CookieCollection
+    Private _TokenSource As Threading.CancellationTokenSource
+    Private _DownloadTask As System.Threading.Tasks.Task
     Public Class UnicodeFontProvider
         Inherits iTextSharp.text.FontFactoryImp
         Public Sub New()
@@ -290,21 +294,16 @@
         My.Settings.Extensions = New System.Text.ASCIIEncoding().GetString(StreamObj.ToArray())
         My.Settings.Save()
     End Sub
-    Private Async Sub btnDownload_Click(sender As Object, e As EventArgs) Handles btnDownload.Click
-        SaveDLSettings()
-        If lbCourseList.SelectedIndex = -1 Then Return
-
-        Dim Path As String = IO.Path.Combine(If(txtDownloadFolder.Text = String.Empty, String.Empty, txtDownloadFolder.Text + "/"), CStr(lbCourseList.SelectedItem.ShortName).Replace(" ", String.Empty))
-        If Not IO.Directory.Exists(Path) Then
-            IO.Directory.CreateDirectory(Path)
-        End If
+    Private Async Sub DoDownload(Path As String, lvFileItems() As FileItem, SkipArray() As Boolean, ct As Threading.CancellationToken)
         Dim msOutput As New IO.MemoryStream()
         Dim Doc As iTextSharp.text.Document = Nothing
         Dim Writer As iTextSharp.text.pdf.PdfWriter = Nothing
-        For Count As Integer = 0 To lvFiles.Items.Count - 1
-            If lvFiles.Items(Count).Checked Then
-                CType(lvFiles.Items(Count), FileItem).UpdateStatus("Checking")
-                Dim FileReq As Net.HttpWebRequest = Net.WebRequest.Create(CType(lvFiles.Items(Count), FileItem).FileURL)
+        Dim Count As Integer
+        For Count = 0 To lvFileItems.Length - 1
+            If ct.IsCancellationRequested Then Exit For
+            If Not SkipArray(Count) Then
+                lvFiles.Invoke(Sub() lvFileItems(Count).UpdateStatus("Checking"))
+                Dim FileReq As Net.HttpWebRequest = Net.WebRequest.Create(lvFileItems(Count).FileURL)
                 FileReq.CookieContainer = New Net.CookieContainer
                 FileReq.CookieContainer.Add(LoginCookies)
                 Dim FileResp As Net.HttpWebResponse
@@ -312,30 +311,30 @@
                     FileResp = Await Threading.Tasks.Task.Factory.FromAsync(FileReq.BeginGetResponse(Sub()
                                                                                                      End Sub, FileReq), AddressOf FileReq.EndGetResponse)
                 Catch ex As Net.WebException
-                    lblError.Text = ex.Message
-                    CType(lvFiles.Items(Count), FileItem).UpdateStatus("Error")
+                    lblError.Invoke(Sub() lblError.Text = ex.Message)
+                    lvFiles.Invoke(Sub() lvFileItems(Count).UpdateStatus("Error"))
                     Continue For
                 End Try
                 Dim RespStream As IO.Stream = FileResp.GetResponseStream()
-                If CType(lvFiles.Items(Count), FileItem).IsQuiz Then
+                If lvFileItems(Count).IsQuiz Then
                     If Doc Is Nothing Then
                         Doc = New iTextSharp.text.Document(iTextSharp.text.PageSize.A4, 30, 30, 30, 30)
                         Writer = iTextSharp.text.pdf.PdfWriter.GetInstance(Doc, msOutput)
                         Writer.CloseStream = False
                         Doc.Open()
                     End If
-                    CType(lvFiles.Items(Count), FileItem).UpdateStatus("Downloading and Fixing HTML")
+                    lvFiles.Invoke(Sub() lvFileItems(Count).UpdateStatus("Downloading and Fixing HTML"))
                     Dim XHtmlFix As String
                     Try
                         XHtmlFix = NSoup.Parse.Parser.HtmlParser.ParseInput(New IO.StreamReader(RespStream).ReadToEnd(), FileResp.ResponseUri.AbsoluteUri).Html()
                     Catch ex As IO.IOException
-                        lblError.Text = ex.Message
-                        CType(lvFiles.Items(Count), FileItem).UpdateStatus("Error")
+                        lblError.Invoke(Sub() lblError.Text = ex.Message)
+                        lvFiles.Invoke(Sub() lvFileItems(Count).UpdateStatus("Error"))
                         RespStream.Close()
                         FileResp.Close()
                         Continue For
                     End Try
-                    CType(lvFiles.Items(Count), FileItem).UpdateStatus("Converting to PDF")
+                    lvFiles.Invoke(Sub() lvFileItems(Count).UpdateStatus("Converting to PDF"))
                     'remove problematic style sheet that causes iTextSharp to crash
                     XHtmlFix = System.Text.RegularExpressions.Regex.Replace(XHtmlFix, "\<link rel=\""stylesheet\"" type=\""text\/css\"" href=\""http:\/\/www\.islamiconlineuniversity\.com\/(?:open)?campus\/theme\/styles\.php\/_s\/(?:elegance|genesis)\/\d*\/all\"" \/\>", String.Empty)
                     'Dim XHtmlStream As New IO.MemoryStream(System.Text.Encoding.GetEncoding(FileResp.CharacterSet).GetBytes(XHtmlFix))
@@ -362,25 +361,25 @@
                 Else
                     'check modified/creation date
                     Dim Length As Long = 0
-                    If cbSubfolders.Checked AndAlso Not IO.Directory.Exists(IO.Path.Combine(Path, If(cbSubfolders.Checked, CType(lvFiles.Items(Count), FileItem).Folder, String.Empty))) Then
-                        IO.Directory.CreateDirectory(IO.Path.Combine(Path, If(cbSubfolders.Checked, CType(lvFiles.Items(Count), FileItem).Folder, String.Empty)))
+                    If cbSubfolders.Checked AndAlso Not IO.Directory.Exists(IO.Path.Combine(Path, If(cbSubfolders.Checked, lvFileItems(Count).Folder, String.Empty))) Then
+                        IO.Directory.CreateDirectory(IO.Path.Combine(Path, If(cbSubfolders.Checked, lvFileItems(Count).Folder, String.Empty)))
                     End If
-                    If IO.File.Exists(IO.Path.Combine(Path, If(cbSubfolders.Checked, CType(lvFiles.Items(Count), FileItem).Folder, String.Empty), CType(lvFiles.Items(Count), FileItem).FileName)) Then
-                        Dim File As IO.FileStream = IO.File.Open(IO.Path.Combine(Path, If(cbSubfolders.Checked, CType(lvFiles.Items(Count), FileItem).Folder, String.Empty), CType(lvFiles.Items(Count), FileItem).FileName), IO.FileMode.Open)
+                    If IO.File.Exists(IO.Path.Combine(Path, If(cbSubfolders.Checked, lvFileItems(Count).Folder, String.Empty), lvFileItems(Count).FileName)) Then
+                        Dim File As IO.FileStream = IO.File.Open(IO.Path.Combine(Path, If(cbSubfolders.Checked, lvFileItems(Count).Folder, String.Empty), lvFileItems(Count).FileName), IO.FileMode.Open)
                         Length = File.Length
                         File.Close()
                     End If
-                    If IO.File.Exists(IO.Path.Combine(Path, If(cbSubfolders.Checked, CType(lvFiles.Items(Count), FileItem).Folder, String.Empty), CType(lvFiles.Items(Count), FileItem).FileName)) AndAlso Length <> 0 AndAlso (Length = CType(lvFiles.Items(Count), FileItem).FileSize Or Length = FileResp.ContentLength) AndAlso ((FileResp.LastModified <> New DateTime(0) And FileResp.LastModified.Subtract(Now).TotalSeconds <= 1) AndAlso IO.File.GetLastWriteTime(IO.Path.Combine(Path, If(cbSubfolders.Checked, CType(lvFiles.Items(Count), FileItem).Folder, String.Empty), CType(lvFiles.Items(Count), FileItem).FileName)) >= FileResp.LastModified Or CType(lvFiles.Items(Count), FileItem).TimeModified <> New DateTime(0) AndAlso IO.File.GetLastWriteTime(IO.Path.Combine(Path, If(cbSubfolders.Checked, CType(lvFiles.Items(Count), FileItem).Folder, String.Empty), CType(lvFiles.Items(Count), FileItem).FileName)) >= CType(lvFiles.Items(Count), FileItem).TimeModified) Then
+                    If IO.File.Exists(IO.Path.Combine(Path, If(cbSubfolders.Checked, lvFileItems(Count).Folder, String.Empty), lvFileItems(Count).FileName)) AndAlso Length <> 0 AndAlso (Length = lvFileItems(Count).FileSize Or Length = FileResp.ContentLength) AndAlso ((FileResp.LastModified <> New DateTime(0) And FileResp.LastModified.Subtract(Now).TotalSeconds <= 1) AndAlso IO.File.GetLastWriteTime(IO.Path.Combine(Path, If(cbSubfolders.Checked, lvFileItems(Count).Folder, String.Empty), lvFileItems(Count).FileName)) >= FileResp.LastModified Or lvFileItems(Count).TimeModified <> New DateTime(0) AndAlso IO.File.GetLastWriteTime(IO.Path.Combine(Path, If(cbSubfolders.Checked, lvFileItems(Count).Folder, String.Empty), lvFileItems(Count).FileName)) >= lvFileItems(Count).TimeModified) Then
                     Else
-                        CType(lvFiles.Items(Count), FileItem).UpdateStatus("Downloading")
-                        Dim FStream As IO.FileStream = IO.File.OpenWrite(IO.Path.Combine(Path, If(cbSubfolders.Checked, CType(lvFiles.Items(Count), FileItem).Folder, String.Empty), CType(lvFiles.Items(Count), FileItem).FileName))
+                        lvFiles.Invoke(Sub() lvFileItems(Count).UpdateStatus("Downloading"))
+                        Dim FStream As IO.FileStream = IO.File.OpenWrite(IO.Path.Combine(Path, If(cbSubfolders.Checked, lvFileItems(Count).Folder, String.Empty), lvFileItems(Count).FileName))
                         Dim Buf(4095) As Byte
                         Dim BytesRead As Integer
                         Try
                             BytesRead = Await RespStream.ReadAsync(Buf, 0, 4096)
                         Catch ex As IO.IOException
-                            lblError.Text = ex.Message
-                            CType(lvFiles.Items(Count), FileItem).UpdateStatus("Error")
+                            lblError.Invoke(Sub() lblError.Text = ex.Message)
+                            lvFiles.Invoke(Sub() lvFileItems(Count).UpdateStatus("Error"))
                             FStream.Close()
                             RespStream.Close()
                             FileResp.Close()
@@ -388,18 +387,26 @@
                         End Try
                         Dim TotalBytes As Integer = 0
                         While BytesRead > 0
+                            If ct.IsCancellationRequested Then
+                                lblError.Invoke(Sub() lblError.Text = "Cancellation Requested")
+                                lvFiles.Invoke(Sub() lvFileItems(Count).UpdateStatus("Cancelled"))
+                                FStream.Close()
+                                RespStream.Close()
+                                FileResp.Close()
+                                Exit For
+                            End If
                             TotalBytes += BytesRead
                             If FileResp.ContentLength = 0 Then
-                                CType(lvFiles.Items(Count), FileItem).UpdateStatus(CStr(TotalBytes) + " bytes")
+                                lvFiles.Invoke(Sub() lvFileItems(Count).UpdateStatus(CStr(TotalBytes) + " bytes"))
                             Else
-                                CType(lvFiles.Items(Count), FileItem).UpdateStatus((TotalBytes / FileResp.ContentLength * 100).ToString("F") + "% (" + CStr(TotalBytes) + "/" + CStr(FileResp.ContentLength) + " bytes)")
+                                lvFiles.Invoke(Sub() lvFileItems(Count).UpdateStatus((TotalBytes / FileResp.ContentLength * 100).ToString("F") + "% (" + CStr(TotalBytes) + "/" + CStr(FileResp.ContentLength) + " bytes)"))
                             End If
                             Await FStream.WriteAsync(Buf, 0, BytesRead)
                             Try
                                 BytesRead = Await RespStream.ReadAsync(Buf, 0, 4096)
                             Catch ex As IO.IOException
-                                lblError.Text = ex.Message
-                                CType(lvFiles.Items(Count), FileItem).UpdateStatus("Error")
+                                lblError.Invoke(Sub() lblError.Text = ex.Message)
+                                lvFiles.Invoke(Sub() lvFileItems(Count).UpdateStatus("Error"))
                                 FStream.Close()
                                 RespStream.Close()
                                 FileResp.Close()
@@ -407,18 +414,18 @@
                             End Try
                         End While
                         FStream.Close()
-                        If CType(lvFiles.Items(Count), FileItem).TimeModified <> New DateTime(0) Then
-                            IO.File.SetLastWriteTime(IO.Path.Combine(Path, If(cbSubfolders.Checked, CType(lvFiles.Items(Count), FileItem).Folder, String.Empty), CType(lvFiles.Items(Count), FileItem).FileName), CType(lvFiles.Items(Count), FileItem).TimeModified)
+                        If lvFileItems(Count).TimeModified <> New DateTime(0) Then
+                            IO.File.SetLastWriteTime(IO.Path.Combine(Path, If(cbSubfolders.Checked, lvFileItems(Count).Folder, String.Empty), lvFileItems(Count).FileName), lvFileItems(Count).TimeModified)
                         ElseIf FileResp.LastModified <> New DateTime(0) And FileResp.LastModified.Subtract(Now).TotalSeconds <= 1 Then
-                            IO.File.SetLastWriteTime(IO.Path.Combine(Path, If(cbSubfolders.Checked, CType(lvFiles.Items(Count), FileItem).Folder, String.Empty), CType(lvFiles.Items(Count), FileItem).FileName), FileResp.LastModified)
+                            IO.File.SetLastWriteTime(IO.Path.Combine(Path, If(cbSubfolders.Checked, lvFileItems(Count).Folder, String.Empty), lvFileItems(Count).FileName), FileResp.LastModified)
                         End If
                     End If
                 End If
                 RespStream.Close()
                 FileResp.Close()
-                CType(lvFiles.Items(Count), FileItem).UpdateStatus("Complete")
+                lvFiles.Invoke(Sub() lvFileItems(Count).UpdateStatus("Complete"))
             Else
-                CType(lvFiles.Items(Count), FileItem).UpdateStatus("Skipped")
+                lvFiles.Invoke(Sub() lvFileItems(Count).UpdateStatus("Skipped"))
             End If
         Next
         If Not Doc Is Nothing Then
@@ -435,6 +442,37 @@
             Writer.Close()
         End If
         msOutput.Close()
+    End Sub
+    Private Async Sub btnDownload_Click(sender As Object, e As EventArgs) Handles btnDownload.Click
+        SaveDLSettings()
+        If lbCourseList.SelectedIndex = -1 Then Return
+        If (btnDownload.Text = "Download") Then
+            btnDownload.Text = "Stop"
+            Dim Path As String = IO.Path.Combine(If(txtDownloadFolder.Text = String.Empty, String.Empty, txtDownloadFolder.Text + "/"), CStr(lbCourseList.SelectedItem.ShortName).Replace(" ", String.Empty))
+            If Not IO.Directory.Exists(Path) Then
+                IO.Directory.CreateDirectory(Path)
+            End If
+            Dim lvFilesItems As New List(Of FileItem)
+            Dim SkipArray As New List(Of Boolean)
+            For Count As Integer = 0 To lvFiles.Items.Count - 1
+                lvFilesItems.Add(CType(lvFiles.Items(Count), FileItem))
+                SkipArray.Add(Not lvFiles.Items(Count).Checked)
+            Next
+            _TokenSource = New Threading.CancellationTokenSource
+            _DownloadTask = New System.Threading.Tasks.Task(New Action(Sub()
+                                                                           DoDownload(Path, lvFilesItems.ToArray(), SkipArray.ToArray(), _TokenSource.Token)
+                                                                       End Sub), _TokenSource.Token)
+            _DownloadTask.Start()
+        Else
+            If Not _DownloadTask Is Nothing Then
+                _TokenSource.Cancel()
+                Await _DownloadTask
+            End If
+            btnDownload.Text = "Download"
+            _TokenSource = Nothing
+            _DownloadTask = Nothing
+        End If
+
     End Sub
     Private Sub btnSetDownloadFolder_Click(sender As Object, e As EventArgs) Handles btnSetDownloadFolder.Click
         If fbdMain.ShowDialog() = Windows.Forms.DialogResult.OK Then
@@ -489,7 +527,7 @@
             clbFileFormats.Items.Add(Extensions(Count) + " (" + ExtensionDesc(Count) + ")")
             clbFileFormats.SetItemChecked(Count, Not String.IsNullOrEmpty(Ext(Extensions(Count))))
         Next
-        If Not My.Settings.AcceptedDisclaimer AndAlso MsgBox("I promise to use this application lawfully and Islamically and never to distribute the copyrighted material of Islamic Online University (IOU) and I promise to keep the module quiz printouts private and never to share them with anyone outside the IOU administration.", MsgBoxStyle.YesNo, "IOU Respect and Integrity Disclaimer") <> MsgBoxResult.Yes Then Me.Close()
+        If Not My.Settings.AcceptedDisclaimer AndAlso MsgBox("I promise to use this application lawfully and Islamically and never to distribute the copyrighted and confidential material of Islamic Online University (IOU) and I promise to keep the module quiz printouts private and never to share them with anyone outside the IOU administration.", MsgBoxStyle.YesNo, "IOU Respect and Integrity Disclaimer") <> MsgBoxResult.Yes Then Me.Close()
         My.Settings.AcceptedDisclaimer = True
         My.Settings.Save()
     End Sub
@@ -544,6 +582,17 @@
         Dim Path As String = IO.Path.Combine(If(txtDownloadFolder.Text = String.Empty, String.Empty, txtDownloadFolder.Text + "/"), CStr(lbCourseList.SelectedItem.ShortName).Replace(" ", String.Empty))
         If Not IO.Directory.Exists(Path) Then
             IO.Directory.CreateDirectory(Path)
+        End If
+    End Sub
+
+    Private Sub lbCourseList_SelectedValueChanged(sender As Object, e As EventArgs) Handles lbCourseList.SelectedValueChanged
+        lvFiles.Items.Clear()
+    End Sub
+
+    Private Async Sub frmIOUDownload_Closing(sender As Object, e As CancelEventArgs) Handles Me.Closing
+        If Not _DownloadTask Is Nothing Then
+            _TokenSource.Cancel()
+            Await _DownloadTask
         End If
     End Sub
 End Class

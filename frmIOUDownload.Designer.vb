@@ -95,6 +95,8 @@ Partial Class frmIOUDownload
         '
         'lbCourseList
         '
+        Me.lbCourseList.Anchor = CType(((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Left) _
+            Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
         Me.lbCourseList.FormattingEnabled = True
         Me.lbCourseList.Location = New System.Drawing.Point(12, 84)
         Me.lbCourseList.Name = "lbCourseList"
@@ -130,6 +132,7 @@ Partial Class frmIOUDownload
         '
         'btnDownload
         '
+        Me.btnDownload.Anchor = CType((System.Windows.Forms.AnchorStyles.Bottom Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
         Me.btnDownload.Location = New System.Drawing.Point(394, 294)
         Me.btnDownload.Name = "btnDownload"
         Me.btnDownload.Size = New System.Drawing.Size(90, 27)
@@ -139,6 +142,7 @@ Partial Class frmIOUDownload
         '
         'btnSetDownloadFolder
         '
+        Me.btnSetDownloadFolder.Anchor = CType((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
         Me.btnSetDownloadFolder.Location = New System.Drawing.Point(424, 148)
         Me.btnSetDownloadFolder.Name = "btnSetDownloadFolder"
         Me.btnSetDownloadFolder.Size = New System.Drawing.Size(90, 34)
@@ -148,6 +152,8 @@ Partial Class frmIOUDownload
         '
         'txtDownloadFolder
         '
+        Me.txtDownloadFolder.Anchor = CType(((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Left) _
+            Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
         Me.txtDownloadFolder.Location = New System.Drawing.Point(12, 156)
         Me.txtDownloadFolder.Name = "txtDownloadFolder"
         Me.txtDownloadFolder.Size = New System.Drawing.Size(406, 20)
@@ -155,6 +161,9 @@ Partial Class frmIOUDownload
         '
         'lvFiles
         '
+        Me.lvFiles.Anchor = CType((((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Bottom) _
+            Or System.Windows.Forms.AnchorStyles.Left) _
+            Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
         Me.lvFiles.CheckBoxes = True
         Me.lvFiles.FullRowSelect = True
         Me.lvFiles.Location = New System.Drawing.Point(12, 209)
@@ -214,6 +223,7 @@ Partial Class frmIOUDownload
         '
         'clbFileFormats
         '
+        Me.clbFileFormats.Anchor = CType((System.Windows.Forms.AnchorStyles.Bottom Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
         Me.clbFileFormats.FormattingEnabled = True
         Me.clbFileFormats.Location = New System.Drawing.Point(358, 209)
         Me.clbFileFormats.Name = "clbFileFormats"
@@ -222,6 +232,7 @@ Partial Class frmIOUDownload
         '
         'btnListFiles
         '
+        Me.btnListFiles.Anchor = CType((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
         Me.btnListFiles.Location = New System.Drawing.Point(424, 103)
         Me.btnListFiles.Name = "btnListFiles"
         Me.btnListFiles.Size = New System.Drawing.Size(90, 27)
