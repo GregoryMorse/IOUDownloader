@@ -21,8 +21,7 @@ sudo apt-get install mono-complete
 sudo apt-get install libmono-microsoft-visualbasic10.0-cil
 
 Example for Mac:
-Download install Mono and X11 (required windowing framework, must reboot after install):
-https://www.xquartz.org/
+Download install Mono:
 http://www.mono-project.com/download/#download-mac
 Download IOUDownloaderMerged.exe from above.
 Then open a Terminal command prompt then "cd Downloads" to go to where it is downloaded for example.  Then execute "mono IOUDownloaderMerged.exe" and be patient.
