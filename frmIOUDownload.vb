@@ -296,7 +296,7 @@ Public Class frmIOUDownload
         My.Settings.Extensions = New System.Text.ASCIIEncoding().GetString(StreamObj.ToArray())
         My.Settings.Save()
     End Sub
-    Private Async Sub DoDownload(Path As String, lvFileItems() As FileItem, SkipArray() As Boolean, ct As Threading.CancellationToken)
+    Private Async Function DoDownload(Path As String, lvFileItems() As FileItem, SkipArray() As Boolean, ct As Threading.CancellationToken) As Threading.Tasks.Task
         Dim msOutput As New IO.MemoryStream()
         Dim Doc As iTextSharp.text.Document = Nothing
         Dim Writer As iTextSharp.text.pdf.PdfWriter = Nothing
@@ -338,7 +338,7 @@ Public Class frmIOUDownload
                     End Try
                     lvFiles.Invoke(Sub() lvFileItems(Count).UpdateStatus("Converting to PDF"))
                     'remove problematic style sheet that causes iTextSharp to crash
-                    XHtmlFix = System.Text.RegularExpressions.Regex.Replace(XHtmlFix, "\<link rel=\""stylesheet\"" type=\""text\/css\"" href=\""http:\/\/www\.islamiconlineuniversity\.com\/(?:open)?campus\/theme\/styles\.php\/_s\/(?:elegance|genesis)\/\d*\/all\"" \/\>", String.Empty)
+                    XHtmlFix = System.Text.RegularExpressions.Regex.Replace(XHtmlFix, "\<link rel=\""stylesheet\"" type=\""text\/css\"" href=\""http:\/\/www\.islamiconlineuniversity\.com\/(?:open)?campus\/theme\/styles\.php\/_s\/(?:elegance|genesis|pioneer)\/\d*\/all\"" \/\>", String.Empty)
                     'Dim XHtmlStream As New IO.MemoryStream(System.Text.Encoding.GetEncoding(FileResp.CharacterSet).GetBytes(XHtmlFix))
                     'XHtmlStream.Seek(0, IO.SeekOrigin.Begin)
                     'iTextSharp.tool.xml.XMLWorkerHelper.GetInstance().ParseXHtml(Writer, Doc, XHtmlStream, System.Text.Encoding.GetEncoding(FileResp.CharacterSet))
@@ -357,9 +357,9 @@ Public Class frmIOUDownload
                     Dim listener As New iTextSharp.tool.xml.XMLWorker(pipeline, True)
                     Dim XMLParser As New iTextSharp.tool.xml.parser.XMLParser(listener)
                     XMLParser.Parse(New IO.MemoryStream(System.Text.Encoding.UTF8.GetBytes(XHtmlFix)))
-                    FixArabic(handler(5))
-                    If Not rbDiploma.Checked Then Doc.Add(handler(4))
-                    Doc.Add(handler(5)) '5th element has the relevant content to eliminate headers and footers
+                    FixArabic(handler(If(Not rbDiploma.Checked, 3, 6)))
+                    'If Not rbDiploma.Checked Then Doc.Add(handler(2))
+                    Doc.Add(handler(If(Not rbDiploma.Checked, 3, 6))) 'nth element has the relevant content to eliminate headers and footers
                 Else
                     'check modified/creation date
                     Dim Length As Long = 0
@@ -433,10 +433,11 @@ Public Class frmIOUDownload
         If Not Doc Is Nothing Then
             Doc.Close()
             If cbPrintModuleTestBooklet.Checked Then
-                If cbSubfolders.Checked AndAlso Not IO.Directory.Exists(Path + If(cbSubfolders.Checked, "\ModuleQuizzes", String.Empty)) Then
-                    IO.Directory.CreateDirectory(Path + If(cbSubfolders.Checked, "\ModuleQuizzes", String.Empty))
+
+                If cbSubfolders.Checked AndAlso Not IO.Directory.Exists(If(cbSubfolders.Checked, IO.Path.Combine(Path, "ModuleQuizzes"), Path)) Then
+                    IO.Directory.CreateDirectory(If(cbSubfolders.Checked, IO.Path.Combine(Path, "ModuleQuizzes"), Path))
                 End If
-                Dim OutFile As IO.FileStream = IO.File.Create(Path + If(cbSubfolders.Checked, "\ModuleQuizzes", String.Empty) + "\ModuleQuizBooklet.pdf")
+                Dim OutFile As IO.FileStream = IO.File.Create(IO.Path.Combine(If(cbSubfolders.Checked, IO.Path.Combine(Path, "ModuleQuizzes"), Path), "ModuleQuizBooklet.pdf"))
                 msOutput.Seek(0, IO.SeekOrigin.Begin)
                 OutFile.Write(msOutput.ToArray(), 0, msOutput.Length)
                 OutFile.Close()
@@ -444,7 +445,7 @@ Public Class frmIOUDownload
             Writer.Close()
         End If
         msOutput.Close()
-    End Sub
+    End Function
     Private Async Sub btnDownload_Click(sender As Object, e As EventArgs) Handles btnDownload.Click
         SaveDLSettings()
         If lbCourseList.SelectedIndex = -1 Then Return
@@ -461,20 +462,17 @@ Public Class frmIOUDownload
                 SkipArray.Add(Not lvFiles.Items(Count).Checked)
             Next
             _TokenSource = New Threading.CancellationTokenSource
-            _DownloadTask = New System.Threading.Tasks.Task(New Action(Sub()
-                                                                           DoDownload(Path, lvFilesItems.ToArray(), SkipArray.ToArray(), _TokenSource.Token)
-                                                                       End Sub), _TokenSource.Token)
-            _DownloadTask.Start()
+            _DownloadTask = DoDownload(Path, lvFilesItems.ToArray(), SkipArray.ToArray(), _TokenSource.Token)
+            Await _DownloadTask
+            btnDownload.Text = "Download"
+            _TokenSource = Nothing
+            _DownloadTask = Nothing
         Else
             If Not _DownloadTask Is Nothing Then
                 _TokenSource.Cancel()
                 Await _DownloadTask
             End If
-            btnDownload.Text = "Download"
-            _TokenSource = Nothing
-            _DownloadTask = Nothing
         End If
-
     End Sub
     Private Sub btnSetDownloadFolder_Click(sender As Object, e As EventArgs) Handles btnSetDownloadFolder.Click
         If fbdMain.ShowDialog() = Windows.Forms.DialogResult.OK Then
