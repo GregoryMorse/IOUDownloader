@@ -64,7 +64,7 @@
     <SignManifests>true</SignManifests>
   </PropertyGroup>
   <PropertyGroup>
-    <ManifestCertificateThumbprint>DC835E78B6B45777D4E666DAF638B999DBFB642E</ManifestCertificateThumbprint>
+    <ManifestCertificateThumbprint>D349197A0936E97190F447063A5ACE3FC643322D</ManifestCertificateThumbprint>
   </PropertyGroup>
   <PropertyGroup>
     <ManifestKeyFile>IOUDownloader_TemporaryKey.pfx</ManifestKeyFile>

@@ -1,5 +1,5 @@
 ﻿Imports System.ComponentModel
-
+Imports System.Linq
 Public Class frmIOUDownload
     'Would be nice to have assignment upload verification and automatic grade checker
     'Requests for news feed PDF and discussion forum PDF
@@ -259,7 +259,7 @@ Public Class frmIOUDownload
                 Await CrawlUrl(CourseNodes(Count).SelectSingleNode("KEY[@name='url']/VALUE").InnerText, Net.WebUtility.HtmlDecode(CourseNodes(Count).SelectSingleNode("KEY[@name='name']/VALUE").InnerText).Replace("&", "+").Replace(":", "-"))
             ElseIf Not CourseNodes(Count).SelectSingleNode("KEY[@name='type']/VALUE") Is Nothing AndAlso CourseNodes(Count).SelectSingleNode("KEY[@name='type']/VALUE").InnerText = "file" Then
                 If cbModuleFiles.Checked And Not CourseNodes(Count).SelectSingleNode("KEY[@name='fileurl']/VALUE") Is Nothing And Not CourseNodes(Count).SelectSingleNode("KEY[@name='filename']/VALUE") Is Nothing AndAlso Not CourseNodes(Count).SelectSingleNode("KEY[@name='filename']/VALUE").InnerText.EndsWith(".html") And clbFileFormats.GetItemChecked(If(Array.IndexOf(Extensions, IO.Path.GetExtension(CourseNodes(Count).SelectSingleNode("KEY[@name='filename']/VALUE").InnerText).ToLower().TrimStart(".")) <> -1, Array.IndexOf(Extensions, IO.Path.GetExtension(CourseNodes(Count).SelectSingleNode("KEY[@name='filename']/VALUE").InnerText).ToLower().TrimStart(".")), Extensions.Length - 1)) Then
-                    lvFiles.Invoke(Sub() lvFiles.Items.Add(New FileItem With {.FileName = CourseNodes(Count).SelectSingleNode("KEY[@name='filename']/VALUE").InnerText, .Folder = If(Name <> String.Empty, Name.Replace(" "c, String.Empty), "ModuleFiles"), .TimeCreated = New DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc).AddSeconds(If(CourseNodes(Count).SelectSingleNode("KEY[@name='timecreated']/VALUE").InnerText Is Nothing, 0, CLng(CourseNodes(Count).SelectSingleNode("KEY[@name='timecreated']/VALUE").InnerText))), .TimeModified = New DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc).AddSeconds(If(CourseNodes(Count).SelectSingleNode("KEY[@name='timemodified']/VALUE").InnerText Is Nothing, 0, CLng(CourseNodes(Count).SelectSingleNode("KEY[@name='timemodified']/VALUE").InnerText))), .FileSize = If(CourseNodes(Count).SelectSingleNode("KEY[@name='filesize']/VALUE") Is Nothing, 0, CLng(CourseNodes(Count).SelectSingleNode("KEY[@name='filesize']/VALUE").InnerText)), .FileURL = CourseNodes(Count).SelectSingleNode("KEY[@name='fileurl']/VALUE").InnerText + "&token=" + Token}))
+                    lvFiles.Invoke(Sub() lvFiles.Items.Add(New FileItem With {.FileName = CourseNodes(Count).SelectSingleNode("KEY[@name='filename']/VALUE").InnerText, .Folder = If(Name <> String.Empty, Name.Replace(" "c, String.Empty).Replace(":"c, String.Empty), "ModuleFiles"), .TimeCreated = New DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc).AddSeconds(If(CourseNodes(Count).SelectSingleNode("KEY[@name='timecreated']/VALUE").InnerText Is Nothing, 0, CLng(CourseNodes(Count).SelectSingleNode("KEY[@name='timecreated']/VALUE").InnerText))), .TimeModified = New DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc).AddSeconds(If(CourseNodes(Count).SelectSingleNode("KEY[@name='timemodified']/VALUE").InnerText Is Nothing, 0, CLng(CourseNodes(Count).SelectSingleNode("KEY[@name='timemodified']/VALUE").InnerText))), .FileSize = If(CourseNodes(Count).SelectSingleNode("KEY[@name='filesize']/VALUE") Is Nothing, 0, CLng(CourseNodes(Count).SelectSingleNode("KEY[@name='filesize']/VALUE").InnerText)), .FileURL = CourseNodes(Count).SelectSingleNode("KEY[@name='fileurl']/VALUE").InnerText + "&token=" + Token}))
                 End If
             ElseIf Not CourseNodes(Count).SelectSingleNode("KEY[@name='modname']/VALUE") Is Nothing AndAlso (CourseNodes(Count).SelectSingleNode("KEY[@name='modname']/VALUE").InnerText = "data" And cbCourseNotes.Checked Or CourseNodes(Count).SelectSingleNode("KEY[@name='modname']/VALUE").InnerText = "wiziq" And cbLiveSessions.Checked) And Not CourseNodes(Count).SelectSingleNode("KEY[@name='url']/VALUE") Is Nothing And Not CourseNodes(Count).SelectSingleNode("KEY[@name='name']/VALUE") Is Nothing Then
                 Await CrawlUrl(CourseNodes(Count).SelectSingleNode("KEY[@name='url']/VALUE").InnerText, Net.WebUtility.HtmlDecode(CourseNodes(Count).SelectSingleNode("KEY[@name='name']/VALUE").InnerText).Replace("&", "+").Replace(":", "-"))
@@ -561,7 +561,11 @@ Public Class frmIOUDownload
         MemStream.Seek(0, IO.SeekOrigin.Begin)
         Dim Reader As System.Xml.XmlReader
         If Resp.ContentType = "application/xml; charset=utf-8" Then
-            Reader = Xml.XmlReader.Create(MemStream)
+            'Dim settings As New Xml.XmlReaderSettings
+            'settings.XmlResolver = Nothing
+            'settings.DtdProcessing = Xml.DtdProcessing.Ignore
+            'settings.CheckCharacters = False
+            Reader = Xml.XmlReader.Create(New IO.MemoryStream(System.Text.Encoding.UTF8.GetBytes(Linq.Enumerable.Where(System.Text.Encoding.UTF8.GetString(MemStream.ToArray()), Function(Ch As Char) Xml.XmlConvert.IsXmlChar(Ch)).ToArray())))
         Else 'application/json; charset=utf-8
             Reader = System.Runtime.Serialization.Json.JsonReaderWriterFactory.CreateJsonReader(MemStream.ToArray(), New System.Xml.XmlDictionaryReaderQuotas())
         End If
